@@ -37,6 +37,7 @@ public class MoviePlayer {
     private int mVideoHeight;
     private long mOutputFrames = 0;
     private boolean mEndOfDecoder = false;
+    private long mStartTime = 0 ;
 
     private final Object mWaitEvent = new Object();
     /**
@@ -271,6 +272,7 @@ public class MoviePlayer {
                 Log.d(TAG, "Stop requested");
                 break;
             }
+            long presentTime = 0;
 
             // Feed more data to the decoder.
             if (!inputDone) {
@@ -297,9 +299,13 @@ public class MoviePlayer {
                         }
                         long presentationTimeUs = extractor.getSampleTime();
                         Log.i(TAG, " decoder present time " + presentationTimeUs);
+                        presentTime = presentationTimeUs;
+                        if (mStartTime == 0) {
+                            mStartTime = presentationTimeUs;
+                        }
 
                         decoder.queueInputBuffer(inputBufIndex, 0, chunkSize,
-                                presentationTimeUs, 0 /*flags*/);
+                                (presentationTimeUs), 0 /*flags*/);
                         if (VERBOSE) {
                             Log.d(TAG, "submitted frame " + inputChunk + " to dec, size=" +
                                     chunkSize);
@@ -371,16 +377,18 @@ public class MoviePlayer {
                     Log.i(TAG, "post output frames " + mOutputFrames + " pid " + Thread.currentThread().getId()
                                 + " used " + (t1 - decoder_used_time)
                                 + " pid " + Thread.currentThread().getId()
+                                + " pts " + presentTime
+                                + " new pts " + (presentTime - mStartTime)
                                 + " eof " + (mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
                     if (!outputDone) {
                         synchronized (mWaitEvent) {
                             try {
-                                mWaitEvent.wait(66);
+                                mWaitEvent.wait(500);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
                         }
-                        Log.i(TAG, "wait " + (System.currentTimeMillis() - t1));
+                        Log.i(TAG, "wait= " + (System.currentTimeMillis() - t1));
                     }
 
 

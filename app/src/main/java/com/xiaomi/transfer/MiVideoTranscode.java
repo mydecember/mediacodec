@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.opengl.EGLSurface;
 import android.opengl.GLES30;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -158,7 +159,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         mCaptureFrameDel = t1;
     }
 
-    private boolean mCaptureOne = true;
+    private int mCaptureOne = 0;
 
     @Override
     public void playbackStopped() {
@@ -188,6 +189,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mEgl.makeCurrent();
                     mFrameBuffer = GlesUtil.createFrameBuffer();
 
+
                     mCameraTextureId = GlesUtil.createCameraTexture();
                     mSurfaceTexture = new SurfaceTexture(mCameraTextureId);
                     mSurfaceTexture.setOnFrameAvailableListener(MiVideoTranscode.this);
@@ -198,6 +200,8 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mOriginalDrawer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
                     int textureId = mOriginalDrawer.getOutputTextureId();
 
+                    //GlesUtil.bindFrameTexture(mFrameBuffer, textureId);
+
                     mWaterDraer.create();
                     mWaterDraer.setInputTextureId(textureId);
                     mWaterDraer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
@@ -207,26 +211,27 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mRecordDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
                     mRecordDrawer.setInputTextureId(textureId);
                     mRecordDrawer.startRecord();
-                    //Play();
-                    //mRecordDrawer.setPlayer(player);
                     break;
                 case CMD_FBO_DRAW:
                     mSurfaceTexture.updateTexImage();
                     float[] mtx = new float[16];;
                     mSurfaceTexture.getTransformMatrix(mtx);
+                    long timeStamp = mSurfaceTexture.getTimestamp();
                     GlesUtil.bindFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
-                    mOriginalDrawer.draw(mSurfaceTexture.getTimestamp(), mtx);
+
+                    mOriginalDrawer.draw(timeStamp, mtx);
+                    GLES30.glFlush();
                     GlesUtil.unBindFrameBuffer();
 
 
                     GlesUtil.bindFrameBuffer(mFrameBuffer, mWaterDraer.getOutputTextureId());
                     mFrameNums++;
-                    mWaterDraer.setWater("" + mFrameNums );
-                    mWaterDraer.draw(mSurfaceTexture.getTimestamp(), mtx);
+                    mWaterDraer.setWater(timeStamp/1000/1000 + " num:" + mFrameNums );
+                    mWaterDraer.draw(timeStamp, mtx);
+                    GLES30.glFlush();
                     GlesUtil.unBindFrameBuffer();
 
-
-                    if (!mCaptureOne) {
+                    if (mCaptureOne < 0) {
                         // save bmp
                         ByteBuffer mBuffer = ByteBuffer.allocateDirect(GlUtil.mWidht * GlUtil.mHeight * 4);
                         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mFrameBuffer);
@@ -239,12 +244,14 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                         bmp.copyPixelsFromBuffer(buf);
                         //afterDraw();
                         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
-                        mCaptureOne = true;
-                        GlUtil.saveFile(bmp, "/sdcard/kk", "kkk.jpeg");
+                        mCaptureOne++;
+                        GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + mCaptureOne+ ".jpeg");
                     }
-
                     mNums++;
-                    mRecordDrawer.draw(mSurfaceTexture.getTimestamp(), mtx);
+                    Log.i(TAG, " to draw present " + mNums + " time " + timeStamp + " " + mOriginalDrawer.getOutputTextureId() + " == " + mWaterDraer.getOutputTextureId() );
+
+                    mRecordDrawer.draw(timeStamp, mtx);
+
                     break;
                 case CMD_SCREEN_DRAW:
                     break;

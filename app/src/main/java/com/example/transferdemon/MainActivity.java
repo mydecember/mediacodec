@@ -88,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
         String source2 = "/sdcard/voip-data/mi_h265_4k.mp4";
         String source3 = "/sdcard/voip-data/source_avc_1920_1080.mp4";
         String source4 = "/sdcard/voip-data/mi_720.mp4";
+        String source5 = "/sdcard/voip-data/result_huawei.mp4";
         mTranscode.startTransfer(source4, "avc", 1920, 1080 , "/sdcard/voip-data/result.mp4",
                 new MiVideoTranscode.TransferCallBack() {
                     public void onTransferEnd() {

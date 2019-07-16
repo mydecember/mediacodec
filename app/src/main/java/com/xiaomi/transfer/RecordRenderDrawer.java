@@ -1,5 +1,6 @@
 package com.xiaomi.transfer;
 
+import android.graphics.Bitmap;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.Looper;
@@ -20,12 +21,12 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
     private int s_Texture;
     private EglBase.Context mSharedContext;
     private String mPath;
-//    private  int mWidth;
-//    private int mHeight;
     private int mFps;
     private String mCodecName;
 
-    //private MoviePlayer mPlayer;
+    private long mStartTime = -1;
+
+   //private MoviePlayer mPlayer;
     private MiVideoTranscode mVideoTransfer;
 //    public void setPlayer(MoviePlayer player) {
 //        mPlayer = player;
@@ -99,6 +100,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
     public void draw(long timestamp, float[] transformMatrix) {
         if (isRecording) {
             Log.d(TAG, "draw: ");
+            mMsgHandler.removeMessages(MsgHandler.MSG_FRAME);
             Message msg = mMsgHandler.obtainMessage(MsgHandler.MSG_FRAME, timestamp);
             mMsgHandler.sendMessage(msg);
         }
@@ -134,6 +136,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
                     stopVideoEncoder();
                     break;
                 case MSG_UPDATE_CONTEXT:
+                    Log.i(TAG, " TO update context");
                     updateEglContext((EglBase.Context) msg.obj);
                     break;
                 case MSG_UPDATE_SIZE:
@@ -171,6 +174,8 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
 
     private void stopVideoEncoder() {
         Log.i(TAG, "to signal stop encoder");
+        //mEgl.setPresentTime(mNowTime + 33000000);
+       //mEgl.swapBuffers();
         mVideoEncoder.stopEncoder();
     }
 
@@ -181,16 +186,21 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         mEgl.makeCurrent();
     }
 
+    long num = 0;
+    int mCaptureOne = 0;
+
     private void drawFrame(long timeStamp) {
         Log.d(TAG, "drawFrame: " + timeStamp );
         mEgl.makeCurrent();
         mVideoEncoder.drainEncoder(false);
         onDraw();
+        Log.i(TAG, "set present time " +timeStamp + " new pts "+ (timeStamp - mStartTime));
+
         mEgl.setPresentTime(timeStamp);
         mEgl.swapBuffers();
+
         Log.d(TAG, "drawFrame end " + " pid " + Thread.currentThread().getId() );
         mVideoTransfer.getPlayer().getOneFrame();
-
     }
 
     private void updateChangedSize(int width, int height) {

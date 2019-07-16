@@ -101,6 +101,7 @@ public abstract class BaseRenderDrawer {
 
     protected void clear(){
         GLES30.glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+        //GLES20.glClearColor(0f, 0f, 0f, 1f);
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
     }
 
