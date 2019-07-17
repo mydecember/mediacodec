@@ -181,4 +181,6 @@ public abstract class BaseRenderDrawer {
 
     protected abstract void onDraw();
 
+    protected abstract void release();
+
 }

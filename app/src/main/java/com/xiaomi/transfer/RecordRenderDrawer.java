@@ -50,6 +50,10 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         this.mFps = fps;
         this.mCodecName = codecName;
     }
+    @Override
+    protected void release() {
+
+    }
 
     @Override
     public void  onVideoEncoderEOF() {
@@ -99,7 +103,6 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
     @Override
     public void draw(long timestamp, float[] transformMatrix) {
         if (isRecording) {
-            Log.d(TAG, "draw: ");
             mMsgHandler.removeMessages(MsgHandler.MSG_FRAME);
             Message msg = mMsgHandler.obtainMessage(MsgHandler.MSG_FRAME, timestamp);
             mMsgHandler.sendMessage(msg);
@@ -174,8 +177,6 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
 
     private void stopVideoEncoder() {
         Log.i(TAG, "to signal stop encoder");
-        //mEgl.setPresentTime(mNowTime + 33000000);
-       //mEgl.swapBuffers();
         mVideoEncoder.stopEncoder();
     }
 
@@ -208,9 +209,11 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
     }
 
     private void quitLooper() {
+        if (mVideoEncoder != null)
         mVideoEncoder.drainEncoder(true);
         if (mEgl != null) {
             mEgl.release();
+            if (mVideoEncoder != null)
             mVideoEncoder.release();
             mVideoEncoder = null;
             mEgl = null;

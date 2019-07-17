@@ -190,9 +190,9 @@ public class GlesUtil {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
     }
 
-//    public void deleteFrameBuffer() {
-//        GLES30.glDeleteFramebuffers(1, new int[]{mFrameBuffer}, 0);
-//        GLES30.glDeleteTextures(1, new int[]{mInputTexture}, 0);
-//    }
+    public static void deleteFrameBuffer(int mFrameBuffer, int textureId) {
+        GLES30.glDeleteFramebuffers(1, new int[]{mFrameBuffer}, 0);
+        GLES30.glDeleteTextures(1, new int[]{textureId}, 0);
+    }
 
 }

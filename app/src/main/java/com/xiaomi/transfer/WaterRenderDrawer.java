@@ -35,6 +35,10 @@ public class WaterRenderDrawer extends BaseRenderDrawer {
 
     }
 
+    protected void release() {
+
+    }
+
     public void setWater(String str) {
         String mstrTitle = str;//"文字渲染到Bitmap!";
         mBitmap = Bitmap.createBitmap(181,44, Bitmap.Config.ARGB_8888);

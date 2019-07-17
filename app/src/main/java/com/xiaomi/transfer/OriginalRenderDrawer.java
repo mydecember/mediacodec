@@ -14,7 +14,10 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
     @Override
     protected void onCreated() {
     }
+    @Override
+    protected void release() {
 
+    }
     @Override
     protected void onChanged(int width, int height) {
         mOutputTextureId = GlesUtil.createFrameTexture(width, height);

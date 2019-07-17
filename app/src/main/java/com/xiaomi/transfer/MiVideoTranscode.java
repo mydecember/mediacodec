@@ -112,7 +112,6 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         }
         mThread.quit();
         mThread = null;
-
         Log.i(TAG, " stopTransfer");
     }
 
@@ -206,9 +205,9 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
                     //GlesUtil.bindFrameTexture(mFrameBuffer, textureId);
 
-                    mWaterDraer.create();
-                    mWaterDraer.setInputTextureId(textureId);
-                    mWaterDraer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
+//                    mWaterDraer.create();
+//                    mWaterDraer.setInputTextureId(textureId);
+//                    mWaterDraer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
 
                     mRecordDrawer.setParams(mCodecName, mRecoderWidth, mRecoderHeight, 30, mPath);
                     mRecordDrawer.create();
@@ -228,12 +227,12 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     GlesUtil.unBindFrameBuffer();
 
 
-                    GlesUtil.bindFrameBuffer(mFrameBuffer, mWaterDraer.getOutputTextureId());
-                    mFrameNums++;
-                    mWaterDraer.setWater(timeStamp/1000/1000 + " num:" + mFrameNums );
-                    mWaterDraer.draw(timeStamp, mtx);
-                    GLES30.glFlush();
-                    GlesUtil.unBindFrameBuffer();
+//                    GlesUtil.bindFrameBuffer(mFrameBuffer, mWaterDraer.getOutputTextureId());
+//                    mFrameNums++;
+//                    mWaterDraer.setWater(timeStamp/1000/1000 + " num:" + mFrameNums );
+//                    mWaterDraer.draw(timeStamp, mtx);
+//                    GLES30.glFlush();
+//                    GlesUtil.unBindFrameBuffer();
 
                     if (mCaptureOne < 0) {
                         // save bmp
@@ -252,7 +251,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                         GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + mCaptureOne+ ".jpeg");
                     }
                     mNums++;
-                    Log.i(TAG, " to draw present " + mNums + " time " + timeStamp + " " + mOriginalDrawer.getOutputTextureId() + " == " + mWaterDraer.getOutputTextureId() );
+                    Log.i(TAG, " to draw present " + mNums + " time " + timeStamp + " " );
 
                     mRecordDrawer.draw(timeStamp, mtx);
 
@@ -266,20 +265,26 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
                     break;
                 case CMD_RELEASE:
+                    if (mOriginalDrawer != null) {
+                        GlesUtil.deleteFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
+                        Log.i(TAG, " detete frame ");
+                    }
+
                     if (mRecordDrawer != null) {
                         mRecordDrawer.quit();
                         mRecordDrawer = null;
                     }
                     mOriginalDrawer = null;
-                    if (mCallBack != null) {
-                        mCallBack.onTransferEnd();
-                    }
                     if (mEgl != null) {
                         mEgl.release();
                     }
                     mExit = true;
                     mEgl = null;
                     Log.i(TAG, " recoder end ");
+
+                    if (mCallBack != null) {
+                        mCallBack.onTransferEnd();
+                    }
                     break;
             }
         }
