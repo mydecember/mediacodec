@@ -13,6 +13,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static android.media.MediaExtractor.SEEK_TO_PREVIOUS_SYNC;
+
 
 /**
  * Plays the video track from a movie file to a Surface.
@@ -266,6 +268,7 @@ public class MoviePlayer {
 
         boolean outputDone = false;
         boolean inputDone = false;
+        //extractor.seekTo(1400000, SEEK_TO_PREVIOUS_SYNC);
         while (!outputDone) {
             if (VERBOSE) Log.d(TAG, "loop");
             if (mIsStopRequested) {

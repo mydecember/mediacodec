@@ -43,6 +43,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     private String mPath = "/sdcard/voip-data/result.mp4";
     private String mCodecName = "avc";
     private TransferCallBack mCallBack;
+    private boolean mPlayerExit = false;
 
     private boolean mExit = false;
 
@@ -88,6 +89,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         mGlHandler.sendMessageDelayed(msg, 1000);
         mRecordDrawer.setParams(codecName, mRecoderWidth, mRecoderHeight, 30, mPath);
         Log.i(TAG, " startTransfer");
+        mPlayerExit = false;
     }
 
     public void stopTransfer(TransferCallBack callBack) {
@@ -100,19 +102,19 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         mIsStarted = false;
 
         //mGlHandler.sendEmptyMessage(CMD_READFILE_END);
-        mGlHandler.sendEmptyMessage(CMD_RELEASE);
+        //mGlHandler.sendEmptyMessage(CMD_RELEASE);
         while(true) {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            if (mExit == true)
+            if (mExit == true && mPlayerExit == true)
                 break;
         }
         mThread.quit();
         mThread = null;
-        Log.i(TAG, " stopTransfer");
+        Log.i(TAG, "startTransfer stopTransfer");
     }
 
     private float mFps = 30;
@@ -166,7 +168,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
     @Override
     public void playbackStopped() {
-
+        mPlayerExit = true;
         mGlHandler.sendEmptyMessage(CMD_READFILE_END);
     }
 

@@ -50,8 +50,9 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                mThreadHandler.sendEmptyMessage(CMD_STOP);
                 mIsLoop = false;
+                mThreadHandler.sendEmptyMessage(CMD_STOP);
+
 
             }
         });
