@@ -97,12 +97,13 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         if (player != null) {
             player.requestStop();
         }
+        mIsStarted = false;
 
         //mGlHandler.sendEmptyMessage(CMD_READFILE_END);
         mGlHandler.sendEmptyMessage(CMD_RELEASE);
         while(true) {
             try {
-                Thread.sleep(500);
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -111,7 +112,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         }
         mThread.quit();
         mThread = null;
-        mIsStarted = false;
+
         Log.i(TAG, " stopTransfer");
     }
 
@@ -134,6 +135,9 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
     @Override
     public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+        if (!mIsStarted) {
+            return;
+        }
         mGlHandler.removeMessages(CMD_FBO_DRAW);
         mGlHandler.sendEmptyMessage(CMD_FBO_DRAW);
 
@@ -273,7 +277,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     if (mEgl != null) {
                         mEgl.release();
                     }
-                    //mExit = true;
+                    mExit = true;
                     mEgl = null;
                     Log.i(TAG, " recoder end ");
                     break;
