@@ -45,6 +45,9 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     private TransferCallBack mCallBack;
     private boolean mPlayerExit = false;
 
+    private long mSeekStartMS = -1;
+    private long mSeekEndMS = -1;
+
     private boolean mExit = false;
 
     private int mFrameNums = 0;
@@ -70,6 +73,11 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     }
 
     boolean mIsStarted = false;
+    public void setTransferDurationTime(long startMS, long endMS) {
+        mSeekStartMS = startMS;
+        mSeekEndMS = endMS;
+    }
+
 
     public void startTransfer(String sourcePath, String codecName, int targetWidth, int targetHeight, String targetPath, TransferCallBack callBack) {
         mCallBack = callBack;
@@ -255,7 +263,15 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mNums++;
                     Log.i(TAG, " to draw present " + mNums + " time " + timeStamp + " " );
 
-                    mRecordDrawer.draw(timeStamp, mtx);
+                    if ((mSeekStartMS == -1 || timeStamp >= mSeekStartMS*1000*1000) && (mSeekEndMS == -1 || timeStamp <= mSeekEndMS*1000*1000) ){
+                        mRecordDrawer.draw(timeStamp, mtx);
+                    } else {
+                        getPlayer().getOneFrame();
+                    }
+
+                    if (mSeekEndMS != -1 && timeStamp > mSeekEndMS*1000*1000) {
+                        player.requestStop();
+                    }
 
                     break;
                 case CMD_SCREEN_DRAW:
@@ -296,7 +312,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     public void Play() {
         Surface surface = new Surface(mSurfaceTexture);
         try {
-            player = new MoviePlayer(new File(mSourceFile), surface, null);
+            player = new MoviePlayer(new File(mSourceFile), surface, null, mSeekStartMS);
         } catch (IOException ioe) {
             Log.e(TAG, "Unable to play movie", ioe);
             surface.release();

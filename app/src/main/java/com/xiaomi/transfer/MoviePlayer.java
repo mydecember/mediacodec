@@ -41,6 +41,8 @@ public class MoviePlayer {
     private boolean mEndOfDecoder = false;
     private long mStartTime = 0 ;
 
+    private long mSeekPosMS = 0;
+
     private final Object mWaitEvent = new Object();
     /**
      * Interface to be implemented by class that manages playback UI.
@@ -94,11 +96,12 @@ public class MoviePlayer {
      * @param frameCallback Callback object, used to pace output.
      * @throws IOException
      */
-    public MoviePlayer(File sourceFile, Surface outputSurface, FrameCallback frameCallback)
+    public MoviePlayer(File sourceFile, Surface outputSurface, FrameCallback frameCallback, long startTimeMs)
             throws IOException {
         //sourceFile = new File("/sdcard/voip-data/VID_20190619_201101.mp4");
         //sourceFile = new File("/sdcard/voip-data/11.mp4");
         mSourceFile = sourceFile;
+        mSeekPosMS = startTimeMs;
 
         if (frameCallback == null) {
             frameCallback = new SpeedControlCallback();
@@ -268,7 +271,7 @@ public class MoviePlayer {
 
         boolean outputDone = false;
         boolean inputDone = false;
-        //extractor.seekTo(1400000, SEEK_TO_PREVIOUS_SYNC);
+        extractor.seekTo(mSeekPosMS*1000, SEEK_TO_PREVIOUS_SYNC);
         while (!outputDone) {
             if (VERBOSE) Log.d(TAG, "loop");
             if (mIsStopRequested) {
