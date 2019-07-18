@@ -252,9 +252,14 @@ public class VideoEncoder {
         }
         if (mMuxer != null) {
             Log.i(TAG, "to stop muxter");
-            mMuxer.stop();
-            Log.i(TAG, "to release muxter");
-            mMuxer.release();
+            try {
+                mMuxer.stop();
+                Log.i(TAG, "to release muxter");
+                mMuxer.release();
+
+            } catch ( Exception e) {
+
+            }
             mMuxer = null;
         }
     }
