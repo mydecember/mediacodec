@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
         String source6 = "/sdcard/voip-data/VID_mi_num.mp4";
 
         //mTranscode.setTransferDurationTime(3152, 5121);
-        mTranscode.startTransfer(source1, "avc", 1920, 1080 , "/sdcard/voip-data/result.mp4",
+        mTranscode.startTransfer(source6, "avc", 1920, 1080 , 0, "/sdcard/voip-data/result.mp4",
                 new MiVideoTranscode.TransferCallBack() {
                     public void onTransferEnd() {
                         Log.i("TTTTTTT", " generate target end");

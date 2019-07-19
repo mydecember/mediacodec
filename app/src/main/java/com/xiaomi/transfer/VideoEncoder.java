@@ -28,6 +28,7 @@ public class VideoEncoder {
     private int mWidth;
     private int mHeight;
     private int mFps;
+    private int mBitrate = 0;
     private  String mPath;
 
     private String VIDEO_MIME_TYPE = "video/avc";
@@ -82,7 +83,7 @@ public class VideoEncoder {
 
     }
 
-    public VideoEncoder(int width, int height, int fps, String path, String codecName, VideoEncoderCallBack callBack) {
+    public VideoEncoder(int width, int height, int fps, int bitrate, String path, String codecName, VideoEncoderCallBack callBack) {
         if (codecName.equals("hevc")) {
             VIDEO_MIME_TYPE = "video/hevc";
         } else {
@@ -93,7 +94,7 @@ public class VideoEncoder {
         mHeight = height;
         mFps = fps;
         mPath = path;
-
+        mBitrate = bitrate;
         if (mDump) {
             try {
                 mOutputStream = new FileOutputStream(mDumpPath);
@@ -205,10 +206,13 @@ public class VideoEncoder {
         int frameRate = mFps;
         // Set some required properties. The media codec may fail if these aren't defined.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
-                MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+        MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
         format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, (int)(mWidth*mHeight*frameRate*0.07*2));
+        if (mBitrate <= 0) {
+            mBitrate = (int)(mWidth*mHeight*4*2);
+        }
+        format.setInteger(MediaFormat.KEY_BIT_RATE, mBitrate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_CAPTURE_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / frameRate);

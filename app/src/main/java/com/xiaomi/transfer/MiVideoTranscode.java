@@ -40,6 +40,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     private String mSourceFile = "/sdcard/voip-data/source_avc_1920_1080.mp4";
     private int mRecoderWidth = 1920;//3840;//1920;
     private int mRecoderHeight = 1080;//2160;//1080;
+    private int mBitRate = 0;
     private String mPath = "/sdcard/voip-data/result.mp4";
     private String mCodecName = "avc";
     private TransferCallBack mCallBack;
@@ -78,12 +79,13 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         mSeekEndMS = endMS;
     }
 
-
-    public void startTransfer(String sourcePath, String codecName, int targetWidth, int targetHeight, String targetPath, TransferCallBack callBack) {
+    // targetWidth/targetHeight 0 for source width/height
+    public void startTransfer(String sourcePath, String codecName, int targetWidth, int targetHeight, int bitRate, String targetPath, TransferCallBack callBack) {
         mCallBack = callBack;
         mSourceFile = sourcePath;
         mRecoderWidth = targetWidth;
         mRecoderHeight = targetHeight;
+        mBitRate = bitRate;
         mPath = targetPath;
         mCodecName = codecName;
 
@@ -95,7 +97,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         Message msg = mGlHandler.obtainMessage(CMD_INIT);
         mGlHandler.removeMessages(CMD_INIT);
         mGlHandler.sendMessageDelayed(msg, 1000);
-        mRecordDrawer.setParams(codecName, mRecoderWidth, mRecoderHeight, 30, mPath);
+        mRecordDrawer.setParams(codecName, mRecoderWidth, mRecoderHeight, 30, mBitRate, mPath);
         Log.i(TAG, " startTransfer");
         mPlayerExit = false;
     }
@@ -219,7 +221,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 //                    mWaterDraer.setInputTextureId(textureId);
 //                    mWaterDraer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
 
-                    mRecordDrawer.setParams(mCodecName, mRecoderWidth, mRecoderHeight, 30, mPath);
+                    mRecordDrawer.setParams(mCodecName, mRecoderWidth, mRecoderHeight, 30, mBitRate, mPath);
                     mRecordDrawer.create();
                     mRecordDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
                     mRecordDrawer.setInputTextureId(textureId);

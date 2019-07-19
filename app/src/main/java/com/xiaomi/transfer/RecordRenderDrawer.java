@@ -23,6 +23,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
     private String mPath;
     private int mFps;
     private String mCodecName;
+    private int mBitrate;
 
     private long mStartTime = -1;
 
@@ -37,7 +38,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         mVideoTransfer = transfer;
     }
 
-    public void setParams(String codecName, int width, int height, int fps, String path) {
+    public void setParams(String codecName, int width, int height, int fps, int bitrate, String path) {
         this.mVideoEncoder = null;
         //this.mEglHelper = null;
         this.mTextureId = 0;
@@ -48,6 +49,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         this.width = width;
         this.height = height;
         this.mFps = fps;
+        this.mBitrate = bitrate;
         this.mCodecName = codecName;
     }
     @Override
@@ -168,7 +170,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
 
     private void prepareVideoEncoder(EglBase.Context context, int width, int height) {
 
-        mVideoEncoder = new VideoEncoder(width, height, mFps, mPath, mCodecName, this);
+        mVideoEncoder = new VideoEncoder(width, height, mFps, mBitrate, mPath, mCodecName, this);
         mEgl = EglBase.create(context);
         mEgl.createSurface(mVideoEncoder.getInputSurface());
         mEgl.makeCurrent();
