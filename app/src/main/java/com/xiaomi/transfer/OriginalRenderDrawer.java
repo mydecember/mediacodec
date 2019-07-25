@@ -2,14 +2,22 @@ package com.xiaomi.transfer;
 
 import android.opengl.GLES11Ext;
 import android.opengl.GLES30;
+import android.opengl.GLUtils;
+import android.opengl.Matrix;
 import android.util.Log;
+
+import java.nio.ByteBuffer;
 
 public class OriginalRenderDrawer extends BaseRenderDrawer {
     private int av_Position;
     private int af_Position;
     private int s_Texture;
+    private int s_mvp;
     private int mInputTextureId;
     private int mOutputTextureId;
+
+    private final float[] modelMatrix = new float[16];  //获得一个model矩阵
+
 
     @Override
     protected void onCreated() {
@@ -25,6 +33,7 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
         av_Position = GLES30.glGetAttribLocation(mProgram, "av_Position");
         af_Position = GLES30.glGetAttribLocation(mProgram, "af_Position");
         s_Texture = GLES30.glGetUniformLocation(mProgram, "s_Texture");
+        s_mvp = GLES30.glGetUniformLocation(mProgram, "modelViewProjectionMatrix");
     }
 
     @Override
@@ -33,6 +42,10 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
             Log.i("TAG", "not inited");
             return;
         }
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.rotateM(modelMatrix, 0, GlUtil.mPictureRotation, 0f, 0f, 1f);//绕着Z轴旋转rotateAngle
+
+        GLES30.glUniformMatrix4fv(s_mvp,1, false, modelMatrix, 0);
         GLES30.glEnableVertexAttribArray(av_Position);
         GLES30.glEnableVertexAttribArray(af_Position);
         //GLES30.glVertexAttribPointer(av_Position, CoordsPerVertexCount, GLES30.GL_FLOAT, false, VertexStride, mVertexBuffer);
@@ -79,9 +92,10 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
         final String source = "attribute vec4 av_Position; " +
                 "attribute vec2 af_Position; " +
                 "varying vec2 v_texPo; " +
+                "uniform mat4 modelViewProjectionMatrix;" +
                 "void main() { " +
                 "    v_texPo = af_Position; " +
-                "    gl_Position = av_Position; " +
+                "    gl_Position = modelViewProjectionMatrix * av_Position; " +
                 "}";
         return source;
     }

@@ -13,6 +13,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel41;
+import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel5;
+import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel51;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel52;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline;
 
@@ -125,6 +128,10 @@ public class VideoEncoder {
                         e.printStackTrace();
                     }
                 }
+                if (info.size > 4 && (encodedData.get(4) & 0x30) == 0 ) {
+//                    Log.i(TAG, " Drop frame pts " + info.presentationTimeUs);
+//                    info.size = 0;
+                }
                 if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                     Log.i(TAG, "get encoded frame sps or pps " + "size" + info.size + " ofset " + info.offset + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
                             + " " + encodedData.get(1)
@@ -179,7 +186,7 @@ public class VideoEncoder {
 
             @Override
             public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
-                Log.d(TAG, " Output Format changed");
+                Log.d(TAG, " Output Format changed " + format);
                 if (mTrackIndex >= 0) {
                     throw new RuntimeException("format changed twice");
                 }
@@ -207,8 +214,8 @@ public class VideoEncoder {
         // Set some required properties. The media codec may fail if these aren't defined.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
         MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
-        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
+//        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
+//        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel5);
         if (mBitrate <= 0) {
             mBitrate = (int)(mWidth*mHeight*4*2);
         }

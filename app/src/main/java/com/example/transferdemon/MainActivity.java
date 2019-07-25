@@ -91,9 +91,10 @@ public class MainActivity extends AppCompatActivity {
         String source4 = "/sdcard/voip-data/mi_720.mp4";
         String source5 = "/sdcard/voip-data/result_huawei.mp4";
         String source6 = "/sdcard/voip-data/VID_mi_num.mp4";
+        String source7 = "/sdcard/voip-data/liyuan.mp4";
 
-        //mTranscode.setTransferDurationTime(3152, 5121);
-        mTranscode.startTransfer(source6, "avc", 1920, 1080 , 0, "/sdcard/voip-data/result.mp4",
+        //mTranscode.setTransferDurationTime(31, 5123);
+        mTranscode.startTransfer(source7, "avc", 0, 0 , 0, "/sdcard/voip-data/result.mp4",
                 new MiVideoTranscode.TransferCallBack() {
                     public void onTransferEnd() {
                         Log.i("TTTTTTT", " generate target end");

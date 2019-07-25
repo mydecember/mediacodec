@@ -3,6 +3,7 @@ package com.xiaomi.transfer;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -124,14 +125,25 @@ public class MoviePlayer {
                 throw new RuntimeException("No video track found in " + mSourceFile);
             }
             extractor.selectTrack(trackIndex);
-
             MediaFormat format = extractor.getTrackFormat(trackIndex);
-            mVideoWidth = format.getInteger(MediaFormat.KEY_WIDTH);
-            mVideoHeight = format.getInteger(MediaFormat.KEY_HEIGHT);
+
+            GlUtil.mPictureRotation = 0;
+            if (format.containsKey(MediaFormat.KEY_ROTATION)) {
+                GlUtil.mPictureRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+            }
+
+            if (GlUtil.mPictureRotation == 90 || GlUtil.mPictureRotation== 270) {
+                mVideoHeight = format.getInteger(MediaFormat.KEY_WIDTH);
+                mVideoWidth = format.getInteger(MediaFormat.KEY_HEIGHT);
+            } else {
+                mVideoWidth = format.getInteger(MediaFormat.KEY_WIDTH);
+                mVideoHeight = format.getInteger(MediaFormat.KEY_HEIGHT);
+            }
 
             GlUtil.mWidht = mVideoWidth;
             GlUtil.mHeight = mVideoHeight;
 
+            Log.i(TAG, " MoviePlayer play url " + sourceFile.getAbsolutePath()+ " width " + mVideoWidth + " height " + mVideoHeight + " rotation " + GlUtil.mPictureRotation);
             if (VERBOSE) {
                 Log.d(TAG, "Video size is " + mVideoWidth + "x" + mVideoHeight);
             }
