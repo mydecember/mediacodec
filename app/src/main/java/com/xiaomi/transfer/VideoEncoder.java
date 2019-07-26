@@ -61,9 +61,11 @@ public class VideoEncoder {
                     && buffer[i + 2] == 0
                     && buffer[i + 3] == 1
                     ) {
-
+                if (VIDEO_MIME_TYPE == "video/avc")
                 Log.i(TAG, "get encoded frame first nalu " + (buffer[i+4] & 0x1f) + " len " + (i - pre));
-
+                if (VIDEO_MIME_TYPE == "video/hevc")
+                    Log.i(TAG, "get encoded frame first nalu " + ((buffer[i+4]>>1) & 0x3f) + " layerid " + (((buffer[i+4]<<5) & 0x10) | ((buffer[i+5]>>3) & 0x1f)) +
+                            " tid " + ((buffer[i+5]&0x03)) + " len " + (i - pre));
 //                if (i != 0) {
 //                    Log.i(TAG, "get encoded frame len " + (i - pre));
 //                }
