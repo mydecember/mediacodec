@@ -2,9 +2,11 @@ package com.xiaomi.transfer;
 
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 //import android.support.annotation.NonNull;
+import android.os.Build;
 import android.util.Log;
 import android.view.Surface;
 
@@ -13,6 +15,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel11;
+import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel4;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel41;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel5;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel51;
@@ -200,6 +204,7 @@ public class VideoEncoder {
             }
         };
         setupEncoder();
+        findHwEncoder(VIDEO_MIME_TYPE);
     }
 
     public void flush() {
@@ -216,8 +221,8 @@ public class VideoEncoder {
         // Set some required properties. The media codec may fail if these aren't defined.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
         MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-//        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
-//        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel5);
+        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
+        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
         if (mBitrate <= 0) {
             mBitrate = (int)(mWidth*mHeight*4*2);
         }
@@ -226,6 +231,9 @@ public class VideoEncoder {
         format.setInteger(MediaFormat.KEY_CAPTURE_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / frameRate);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,  IFRAME_INTERVAL); // 1 seconds between I-frames
+        // use cbr default is vbr
+        //format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
+
         Log.i(TAG," set video encoder format " + format);
         // Create a MediaCodec encoder and configure it. Get a Surface we can use for recording into.
         try {
@@ -350,6 +358,123 @@ public class VideoEncoder {
                     break;
                 }
             }
+        }
+    }
+
+    private static final int[] supportedColorList = {
+            MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar,
+            MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar
+    };
+
+    private static final String[] supportedHwCodecPrefixes =
+            {"OMX.qcom.", "OMX.Nvidia.", "OMX.IMG.TOPAZ", "OMX.Exynos", "OMX.MTK", "OMX.hantro", "OMX.Intel", "OMX.ARM"};//OMX.ARM xiaomi pengpai S1
+    // Bitrate mode
+    private static final int VIDEO_ControlRateConstant = 2;
+
+
+    private static void findHwEncoder(String mime) {
+        try {
+            Log.i(TAG, "sdk version is: "+  Build.VERSION.SDK_INT);
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)
+                return ; // MediaCodec.setParameters is missing.
+
+            for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
+                MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
+                if (!info.isEncoder()) {
+                    continue;
+                }
+                for (String mimeType : info.getSupportedTypes()) {
+                    Log.i(TAG, "codec name: " + mimeType + " company:" + info.getName());
+                }
+            }
+
+            for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
+                MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
+                if (!info.isEncoder()) {
+                    continue;
+                }
+                String name = null;
+                for (String mimeType : info.getSupportedTypes()) {
+                    Log.i(TAG, "codec name: " + mimeType);
+                    if (mimeType.equals(mime)) {
+                        name = info.getName();
+                        break;
+                    }
+                }
+                if (name == null) {
+                    continue;  // No VP8 support in this codec; try the next one.
+                }
+
+
+                Log.i(TAG, "Found candidate encoder " + name);
+                MediaCodecInfo.CodecCapabilities capabilities = info.getCapabilitiesForType(mime);
+
+                Log.i(TAG, "#####level###### " );
+                for (MediaCodecInfo.CodecProfileLevel level : capabilities.profileLevels) {
+                    Log.i(TAG,"profile " + Integer.toHexString(level.profile) + " level " + Integer.toHexString(level.level));
+                }
+                Log.i(TAG, " cbr " + capabilities.getEncoderCapabilities().isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR));
+                Log.i(TAG, " vbr " + capabilities.getEncoderCapabilities().isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR));
+                Log.i(TAG, " cq " + capabilities.getEncoderCapabilities().isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ));
+                Log.i(TAG, " complex  " + capabilities.getEncoderCapabilities().getComplexityRange());
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    Log.i(TAG, " quality  " +capabilities.getEncoderCapabilities().getQualityRange());
+                }
+
+                Log.i(TAG, "#####video cap###### " );
+                MediaCodecInfo.VideoCapabilities cap  = capabilities.getVideoCapabilities();
+                Log.i(TAG, " bitrate " + cap.getBitrateRange());
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try{
+                        cap.getAchievableFrameRatesFor(3840, 2160);
+                    } catch (Exception e) {
+                        Log.e(TAG, " getAchievableFrameRatesFor ", e);
+                    }
+
+                }
+                Log.i(TAG, " fps " + 1);
+
+                Log.i(TAG, "width alignment " + cap.getWidthAlignment());
+                Log.i(TAG, "height alignment " +cap.getHeightAlignment());
+                Log.i(TAG, " bitrate " + cap.areSizeAndRateSupported(3840, 2160, 30));
+                Log.i(TAG, " support fps " + cap.getSupportedFrameRates());
+                Log.i(TAG, " support height " + cap.getSupportedHeights());
+                Log.i(TAG, " support width " + cap.getSupportedWidths());
+                Log.i(TAG, " size support " + cap.isSizeSupported(3840, 2160));
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    Log.i(TAG, "#####max instance######" + capabilities.getMaxSupportedInstances());
+                }
+                Log.i(TAG, "#####corol######" );
+
+
+                for (int colorFormat : capabilities.colorFormats) {
+                    Log.i(TAG, "   Color: 0x" + Integer.toHexString(colorFormat));
+                }
+
+                // Check if this is supported HW encoder
+                for (String hwCodecPrefix : supportedHwCodecPrefixes) {
+                    if (!name.startsWith(hwCodecPrefix)) {
+                        continue;
+                    }
+                    // Check if codec supports either yuv420 or nv12
+                    for (int supportedColorFormat : supportedColorList) {
+                        for (int codecColorFormat : capabilities.colorFormats) {
+                            if (codecColorFormat == supportedColorFormat) {
+                                // Found supported HW VP8 encoder
+                                Log.i(TAG, "Found target encoder " + name +
+                                        ". Color: 0x" + Integer.toHexString(codecColorFormat));
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            return ;  // No HW VP8 encoder.
+        }catch (Exception e) {
+            Log.e(TAG, "find exception at findHwEncoder:", e);
+            return ;
         }
     }
 }
