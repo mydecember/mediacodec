@@ -1,10 +1,12 @@
 package com.xiaomi.transfer;
 
 import android.graphics.Bitmap;
+import android.media.MediaFormat;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.util.Log;
 
 public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, VideoEncoder.VideoEncoderCallBack {
@@ -102,6 +104,19 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         this.height = height;
     }
 
+    public void addAudioFormat(Object format) {
+        if (format == null) {
+            return;
+        }
+        Message msg = mMsgHandler.obtainMessage(MsgHandler.MSG_AUDIO_FORMAT, format);
+        mMsgHandler.sendMessage(msg);
+    }
+
+    public void addAudioFrame(Object frame) {
+        Message msg = mMsgHandler.obtainMessage(MsgHandler.MSG_AUDIO_FRAME, frame);
+        mMsgHandler.sendMessage(msg);
+    }
+
     @Override
     public void draw(long timestamp, float[] transformMatrix) {
         if (isRecording) {
@@ -126,6 +141,8 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         public static final int MSG_FRAME = 5;
         public static final int MSG_QUIT = 6;
         public static final int MSG_ENCODER_EOF = 7;
+        public static final int MSG_AUDIO_FORMAT = 8;
+        public static final int MSG_AUDIO_FRAME = 9;
 
         public MsgHandler() {
 
@@ -156,10 +173,24 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
                 case MSG_ENCODER_EOF:
                     handleEncoderEOF();
                     break;
+                case MSG_AUDIO_FORMAT:
+                    handleAudioFormat((MediaFormat) msg.obj);
+                    break;
+                case MSG_AUDIO_FRAME:
+                    handleAudioFrame((MoviePlayer.AudioFrame) msg.obj);
+                    break;
                 default:
                     break;
             }
         }
+    }
+
+    private void handleAudioFormat( MediaFormat format) {
+        mVideoEncoder.addAudioTrack(format);
+    }
+
+    private void handleAudioFrame(MoviePlayer.AudioFrame frame) {
+        mVideoEncoder.writeAudioSample(frame);
     }
 
     private void handleEncoderEOF() {

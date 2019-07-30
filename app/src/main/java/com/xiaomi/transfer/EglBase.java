@@ -11,7 +11,7 @@ public abstract class EglBase {
 
     private static final int EGL_OPENGL_ES2_BIT = 4;
     static final int[] CONFIG_PLAIN = {
-            EGL10.EGL_SURFACE_TYPE, EGL10.EGL_WINDOW_BIT,      // 渲染类型
+            EGL10.EGL_SURFACE_TYPE, EGL10.EGL_PBUFFER_BIT,      // 渲染类型
             EGL10.EGL_RED_SIZE, 8,
             EGL10.EGL_GREEN_SIZE, 8,
             EGL10.EGL_BLUE_SIZE, 8,
