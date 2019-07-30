@@ -39,9 +39,9 @@ public class VideoEncoder {
     private MediaCodec.BufferInfo mBufferInfo;
     private int mNum = 0;
 
-    private boolean mDump = false;
+    private boolean mDump = true;
     private FileOutputStream mOutputStream;
-    private String mDumpPath = "/sdcard/voip-data/dump.h264";
+    private String mDumpPath = "";
 
     private boolean mAsync = true;
 
@@ -86,8 +86,10 @@ public class VideoEncoder {
     public VideoEncoder(int width, int height, int fps, int bitrate, String path, String codecName, VideoEncoderCallBack callBack) {
         if (codecName.equals("hevc")) {
             VIDEO_MIME_TYPE = "video/hevc";
+            mDumpPath = "/sdcard/voip-data/dump.h265";
         } else {
             VIDEO_MIME_TYPE = "video/avc";
+            mDumpPath = "/sdcard/voip-data/dump.h264";
         }
         mCallBack = callBack;
         mWidth = width;
@@ -102,6 +104,13 @@ public class VideoEncoder {
                 e.printStackTrace();
             }
         }
+        Log.i(TAG,"set videoencoder params width " + width
+                                                    +" height " + height
+               + " fps " +fps
+               + " bitrate " + bitrate
+               + " path " +path
+                +" codecName " +codecName
+                +" mdump " +mDumpPath);
         encoderCallback = new MediaCodec.Callback() {
             @Override
             public void onInputBufferAvailable(MediaCodec codec, int index) {
@@ -216,7 +225,9 @@ public class VideoEncoder {
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_CAPTURE_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / frameRate);
-        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,  IFRAME_INTERVAL); // 1 seconds between I-frames
+        //format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,  IFRAME_INTERVAL); // 1 seconds between I-frames
+        format.setInteger(MediaFormat.KEY_INTRA_REFRESH_PERIOD,  IFRAME_INTERVAL); // 1 seconds between I-frames
+
         Log.i(TAG," set video encoder format " + format);
         // Create a MediaCodec encoder and configure it. Get a Surface we can use for recording into.
         try {
