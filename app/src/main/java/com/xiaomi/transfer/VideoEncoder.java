@@ -14,6 +14,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel11;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel4;
@@ -31,6 +33,7 @@ public class VideoEncoder {
     private MediaMuxer mMuxer;
     private MediaCodec mEncoder;
     private int mTrackIndex = -1;
+    private int mAudioTrackIndex = -1;
     private boolean mMuxerStarted = false;
     private int mWidth;
     private int mHeight;
@@ -51,6 +54,7 @@ public class VideoEncoder {
     private String mDumpPath = "/sdcard/voip-data/dump.h264";
 
     private boolean mAsync = true;
+    private Queue<MoviePlayer.AudioFrame> audioFramequeue = new LinkedList<MoviePlayer.AudioFrame>();
 
     public interface VideoEncoderCallBack {
         public void  onVideoEncoderEOF();
@@ -65,14 +69,13 @@ public class VideoEncoder {
                     && buffer[i + 2] == 0
                     && buffer[i + 3] == 1
                     ) {
-                if (VIDEO_MIME_TYPE == "video/avc")
-                Log.i(TAG, "get encoded frame first nalu " + (buffer[i+4] & 0x1f) + " len " + (i - pre));
-                if (VIDEO_MIME_TYPE == "video/hevc")
-                    Log.i(TAG, "get encoded frame first nalu " + ((buffer[i+4]>>1) & 0x3f) + " layerid " + (((buffer[i+4]<<5) & 0x10) | ((buffer[i+5]>>3) & 0x1f)) +
-                            " tid " + ((buffer[i+5]&0x03)) + " len " + (i - pre));
-//                if (i != 0) {
-//                    Log.i(TAG, "get encoded frame len " + (i - pre));
-//                }
+                if (VIDEO_MIME_TYPE == "video/avc") {
+                    //Log.i(TAG, "get encoded frame first nalu " + (buffer[i + 4] & 0x1f) + " len " + (i - pre));
+                }
+                if (VIDEO_MIME_TYPE == "video/hevc") {
+//                    Log.i(TAG, "get encoded frame first nalu " + ((buffer[i+4]>>1) & 0x3f) + " layerid " + (((buffer[i+4]<<5) & 0x10) | ((buffer[i+5]>>3) & 0x1f)) +
+//                            " tid " + ((buffer[i+5]&0x03)) + " len " + (i - pre));
+                }
 
                 pre = i;
                 i += 4;
@@ -139,12 +142,12 @@ public class VideoEncoder {
 //                    info.size = 0;
                 }
                 if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                    Log.i(TAG, "get encoded frame sps or pps " + "size" + info.size + " ofset " + info.offset + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
-                            + " " + encodedData.get(1)
-                            + " " + encodedData.get(1)
-                            + " " + encodedData.get(2)
-                            + " " + encodedData.get(3)
-                            + " " + encodedData.get(4));
+//                    Log.i(TAG, "get encoded frame sps or pps " + "size" + info.size + " ofset " + info.offset + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
+//                            + " " + encodedData.get(1)
+//                            + " " + encodedData.get(1)
+//                            + " " + encodedData.get(2)
+//                            + " " + encodedData.get(3)
+//                            + " " + encodedData.get(4));
                     info.size = 0;
                 }
 
@@ -154,15 +157,15 @@ public class VideoEncoder {
                         encodedData.position(info.offset);
                         encodedData.limit(info.offset + info.size);
                         mMuxer.writeSampleData(mTrackIndex, encodedData, info);
-                        Log.i(TAG, "get encoded frame " + info.size + " encode frame num " + mEncoderFrames
-                                + " pts " + info.presentationTimeUs
-                                + " offset " + info.offset
-                                + " pid " + Thread.currentThread().getId() + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
-                                + " " + encodedData.get(1)
-                                + " " + encodedData.get(2)
-                                + " " + encodedData.get(3)
-                                + " " + encodedData.get(4)
-                                + " eof " + (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
+//                        Log.i(TAG, "get encoded frame " + info.size + " encode frame num " + mEncoderFrames
+//                                + " pts " + info.presentationTimeUs
+//                                + " offset " + info.offset
+//                                + " pid " + Thread.currentThread().getId() + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
+//                                + " " + encodedData.get(1)
+//                                + " " + encodedData.get(2)
+//                                + " " + encodedData.get(3)
+//                                + " " + encodedData.get(4)
+//                                + " eof " + (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
 
                     }
                 }
@@ -201,6 +204,14 @@ public class VideoEncoder {
                     mMuxer.start();
                     mMuxerStarted = true;
                 }
+
+                while(audioFramequeue.size() > 0) {
+                    MoviePlayer.AudioFrame frame = audioFramequeue.peek();
+                    mMuxer.writeSampleData(mAudioTrackIndex, frame.buffer, frame.info);
+                    audioFramequeue.remove();
+                }
+
+
             }
         };
         setupEncoder();
@@ -221,8 +232,8 @@ public class VideoEncoder {
         // Set some required properties. The media codec may fail if these aren't defined.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
         MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
-        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
+        //format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
+        //format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel4);
         if (mBitrate <= 0) {
             mBitrate = (int)(mWidth*mHeight*4*2);
         }
@@ -246,11 +257,31 @@ public class VideoEncoder {
             //mEncoder.reset();
             mEncoder.start();
             mMuxer = new MediaMuxer(mPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-
         } catch (IOException e) {
             release();
             e.printStackTrace();
         }
+    }
+    public void addAudioTrack(MediaFormat format) {
+        String mime = format.getString(MediaFormat.KEY_MIME);
+        if (mime.startsWith("audio" +"/")) {
+            mAudioTrackIndex = mMuxer.addTrack(format);
+        } else {
+            mTrackIndex = mMuxer.addTrack(format);
+        }
+        if (mTrackIndex != -1 && mAudioTrackIndex != -1) {
+            mMuxer.start();
+            mMuxerStarted = true;
+        }
+
+    }
+
+    public void writeAudioSample(MoviePlayer.AudioFrame frame) {
+        if (!mMuxerStarted) {
+            audioFramequeue.add(frame);
+            return;
+        }
+        mMuxer.writeSampleData(mAudioTrackIndex, frame.buffer, frame.info);
     }
 
     public void stopEncoder() {
@@ -454,10 +485,10 @@ public class VideoEncoder {
                 }
 
                 // Check if this is supported HW encoder
-                for (String hwCodecPrefix : supportedHwCodecPrefixes) {
-                    if (!name.startsWith(hwCodecPrefix)) {
-                        continue;
-                    }
+//                for (String hwCodecPrefix : supportedHwCodecPrefixes) {
+//                    if (!name.startsWith(hwCodecPrefix)) {
+//                        continue;
+//                    }
                     // Check if codec supports either yuv420 or nv12
                     for (int supportedColorFormat : supportedColorList) {
                         for (int codecColorFormat : capabilities.colorFormats) {
@@ -469,7 +500,7 @@ public class VideoEncoder {
                             }
                         }
                     }
-                }
+           //     }
             }
             return ;  // No HW VP8 encoder.
         }catch (Exception e) {

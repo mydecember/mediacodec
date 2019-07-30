@@ -2,6 +2,8 @@ package com.xiaomi.transfer;
 
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
+import android.media.MediaCodec;
+import android.media.MediaFormat;
 import android.opengl.EGLSurface;
 import android.opengl.GLES30;
 import android.os.Build;
@@ -19,7 +21,7 @@ import java.nio.ByteOrder;
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener, MoviePlayer.PlayerFeedback  {
+public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener, MoviePlayer.PlayerFeedback, MoviePlayer.FrameCallback  {
     private static final String TAG = "MiVideoTranscode";
 
     private static final int CMD_INIT = 0x001;
@@ -27,7 +29,9 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     private static final int CMD_SCREEN_DRAW = 0x003;
     private static final int CMD_RELEASE = 0x004;
     private static final int CMD_READFILE_END = 0x005;
-    private static final int CMD_RECODER_END = 0x006;
+    private static final int CMD_AUDIO_FORMATE = 0x006;
+    private static final int CMD_AUDIO_BYTE= 0x007;
+    private static final int CMD_RECODER_END = 0x008;
     private HandlerThread mThread;
     private GLHandler mGlHandler;
     private EglBase mEgl;
@@ -226,6 +230,9 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mRecordDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
                     mRecordDrawer.setInputTextureId(textureId);
                     mRecordDrawer.startRecord();
+
+                    mRecordDrawer.addAudioFormat(player.getAudioFromate());
+                    mPlayTask.execute();
                     break;
                 case CMD_FBO_DRAW:
                     mSurfaceTexture.updateTexImage();
@@ -278,11 +285,15 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     break;
                 case CMD_SCREEN_DRAW:
                     break;
+                case CMD_AUDIO_FORMATE:
+                    mRecordDrawer.addAudioFormat(msg.obj);
+                    break;
+                case CMD_AUDIO_BYTE:
+                    mRecordDrawer.addAudioFrame(msg.obj);
+                    break;
                 case CMD_READFILE_END:
                     if (mRecordDrawer != null)
                         mRecordDrawer.stopRecord();
-
-
                     break;
                 case CMD_RELEASE:
                     if (mOriginalDrawer != null) {
@@ -314,7 +325,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     public void Play() {
         Surface surface = new Surface(mSurfaceTexture);
         try {
-            player = new MoviePlayer(new File(mSourceFile), surface, null, mSeekStartMS);
+            player = new MoviePlayer(new File(mSourceFile), surface, this, mSeekStartMS);
         } catch (IOException ioe) {
             Log.e(TAG, "Unable to play movie", ioe);
             surface.release();
@@ -327,8 +338,34 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
         mPlayTask = new MoviePlayer.PlayTask(player, this);
 
-        mPlayTask.execute();
+//        mPlayTask.execute();
         Log.i(TAG, "start play");
     }
 
+    @Override
+    public void onAudioFormat(MediaFormat format) {
+        //Message msg = mGlHandler.obtainMessage(CMD_AUDIO_FORMATE, format);
+        //mGlHandler.sendMessage(msg);
+    }
+
+    @Override
+    public void onAudioFrame(MoviePlayer.AudioFrame frame) {
+        Message msg = mGlHandler.obtainMessage(CMD_AUDIO_BYTE, frame);
+        mGlHandler.sendMessage(msg);
+    }
+
+    @Override
+    public void preRender(long presentationTimeUsec) {
+
+    }
+
+    @Override
+    public void postRender() {
+
+    }
+
+    @Override
+    public void loopReset() {
+
+    }
 }

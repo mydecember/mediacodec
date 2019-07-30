@@ -6,6 +6,7 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 
@@ -45,6 +46,11 @@ public class MoviePlayer {
     private long mSeekPosMS = 0;
 
     private final Object mWaitEvent = new Object();
+
+    private MediaFormat mAudioFromate = null;
+    private MediaFormat mVideoFromate = null;
+    private int mMaxSize = 0;
+    private int mMaxAudioSize = 0;
     /**
      * Interface to be implemented by class that manages playback UI.
      * <p>
@@ -54,12 +60,25 @@ public class MoviePlayer {
         void playbackStopped();
     }
 
+    public class AudioFrame {
+        public ByteBuffer buffer;
+        public MediaCodec.BufferInfo info;
+    }
 
+    public MediaFormat getAudioFromate() {
+        return mAudioFromate;
+    }
+
+    public MediaFormat getVideoFromate() {
+        return mVideoFromate;
+    }
     /**
      * Callback invoked when rendering video frames.  The MoviePlayer client must
      * provide one of these.
      */
     public interface FrameCallback {
+        void onAudioFormat(MediaFormat format);
+        void onAudioFrame(AudioFrame frame);
         /**
          * Called immediately before the frame is rendered.
          * @param presentationTimeUsec The desired presentation time, in microseconds.
@@ -120,13 +139,18 @@ public class MoviePlayer {
         try {
             extractor = new MediaExtractor();
             extractor.setDataSource(sourceFile.toString());
+            int audioIndex = selectTrack(extractor, "audio");
+            if (audioIndex != -1) {
+                mAudioFromate = extractor.getTrackFormat(audioIndex);
+                mFrameCallback.onAudioFormat(mAudioFromate);
+            }
             int trackIndex = selectTrack(extractor);
             if (trackIndex < 0) {
                 throw new RuntimeException("No video track found in " + mSourceFile);
             }
             extractor.selectTrack(trackIndex);
             MediaFormat format = extractor.getTrackFormat(trackIndex);
-
+            mVideoFromate = format;
             GlUtil.mPictureRotation = 0;
             if (format.containsKey(MediaFormat.KEY_ROTATION)) {
                 GlUtil.mPictureRotation = format.getInteger(MediaFormat.KEY_ROTATION);
@@ -153,6 +177,7 @@ public class MoviePlayer {
             }
         }
     }
+
 
     /**
      * Returns the width, in pixels, of the video.
@@ -190,6 +215,8 @@ public class MoviePlayer {
      * Does not return until video playback is complete, or we get a "stop" signal from
      * frameCallback.
      */
+
+    int maudioTrack = -1;
     public void play() throws IOException {
         MediaExtractor extractor = null;
         MediaCodec decoder = null;
@@ -207,10 +234,26 @@ public class MoviePlayer {
             if (trackIndex < 0) {
                 throw new RuntimeException("No video track found in " + mSourceFile);
             }
+
+            maudioTrack = selectTrack(extractor, "audio");
+            if (maudioTrack != -1) {
+                MediaFormat mediaFormat = extractor.getTrackFormat(maudioTrack);
+                String mime = mediaFormat.getString(MediaFormat.KEY_MIME);
+                Log.i(TAG, " get audio codec " + mime);
+                int audioChannels = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                Log.i(TAG, " get audio channels " + audioChannels);
+                int audioSampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                Log.i(TAG, " get audio sampleRate " + audioSampleRate);
+                mMaxAudioSize = mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+                Log.i(TAG, " get audio input size  " + mMaxAudioSize);
+
+                extractor.selectTrack(maudioTrack);
+            }
+
             extractor.selectTrack(trackIndex);
 
             MediaFormat format = extractor.getTrackFormat(trackIndex);
-
+            mMaxSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
             // Create a MediaCodec decoder, and configure it with the MediaFormat from the
             // extractor.  It's very important to use the format from the extractor because
             // it contains a copy of the CSD-0/CSD-1 codec-specific data chunks.
@@ -220,7 +263,12 @@ public class MoviePlayer {
             decoder.start();
 
             doExtract(extractor, trackIndex, decoder, mFrameCallback);
-        } finally {
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.i(TAG, " " + "eerrr0r");
+        }
+        finally {
+
             // release everything we grabbed
             if (decoder != null) {
                 decoder.stop();
@@ -246,6 +294,23 @@ public class MoviePlayer {
             MediaFormat format = extractor.getTrackFormat(i);
             String mime = format.getString(MediaFormat.KEY_MIME);
             if (mime.startsWith("video/")) {
+                if (VERBOSE) {
+                    Log.d(TAG, "Extractor selected track " + i + " (" + mime + "): " + format);
+                }
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int selectTrack(MediaExtractor extractor, String type) {
+        // Select the first video track we find, ignore the rest.
+        int numTracks = extractor.getTrackCount();
+        for (int i = 0; i < numTracks; i++) {
+            MediaFormat format = extractor.getTrackFormat(i);
+            String mime = format.getString(MediaFormat.KEY_MIME);
+            if (mime.startsWith(type +"/")) {
                 if (VERBOSE) {
                     Log.d(TAG, "Extractor selected track " + i + " (" + mime + "): " + format);
                 }
@@ -283,6 +348,7 @@ public class MoviePlayer {
 
         boolean outputDone = false;
         boolean inputDone = false;
+
         extractor.seekTo(mSeekPosMS*1000, SEEK_TO_PREVIOUS_SYNC);
         while (!outputDone) {
             if (VERBOSE) Log.d(TAG, "loop");
@@ -291,6 +357,31 @@ public class MoviePlayer {
                 break;
             }
             long presentTime = 0;
+
+            int Index = extractor.getSampleTrackIndex();
+            if (Index == maudioTrack) {
+                AudioFrame frame = new AudioFrame();
+                frame.buffer = ByteBuffer.allocate(mMaxAudioSize);
+                int audioSize = extractor.readSampleData(frame.buffer, 0);
+
+                if (audioSize > 0)
+                    if (extractor.getSampleTrackIndex() == maudioTrack) {
+                        frame.info = new MediaCodec.BufferInfo();
+                        frame.info.set(0, audioSize, extractor.getSampleTime(), extractor.getSampleFlags());
+                        mFrameCallback.onAudioFrame(frame);
+                        // event
+                        extractor.advance();
+
+                        continue;
+                    }
+                if (audioSize <= 0) {
+                    Log.i(TAG,"EEEEEEEEEEEEEEE ");
+                    //break;
+                }
+            } else {
+
+            }
+
 
             // Feed more data to the decoder.
             if (!inputDone) {
@@ -303,6 +394,7 @@ public class MoviePlayer {
                     // Read the sample data into the ByteBuffer.  This neither respects nor
                     // updates inputBuf's position, limit, etc.
                     int chunkSize = extractor.readSampleData(inputBuf, 0);
+                    //inputBuf.put(byteBuf);
                     decoder_used_time = System.currentTimeMillis();
                     if (chunkSize < 0 || mIsStopRequested) {
                         // End of stream -- send empty frame with EOS flag set.
@@ -552,6 +644,16 @@ public class MoviePlayer {
          */
         public void setFixedPlaybackRate(int fps) {
             mFixedFrameDurationUsec = ONE_MILLION / fps;
+        }
+
+        @Override
+        public void onAudioFormat(MediaFormat format) {
+
+        }
+
+        @Override
+        public void onAudioFrame(AudioFrame frame) {
+
         }
 
         // runs on decode thread
