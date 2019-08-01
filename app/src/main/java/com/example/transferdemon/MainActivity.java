@@ -110,11 +110,11 @@ public class MainActivity extends AppCompatActivity {
         String source4 = "/sdcard/voip-data/mi_720.mp4";
         String source5 = "/sdcard/voip-data/result_huawei.mp4";
         String source6 = "/sdcard/voip-data/VID_mi_num.mp4";
-    //    String source7 = "/sdcard/voip-data/liyuan.mp4";
-        String source7 = "/sdcard/voip-data/dou.mp4";
+       String source7 = "/sdcard/voip-data/dou.mp4";
+        String source8 = "/sdcard/voip-data/832_468.mp4";
 
-        mTranscode.setTransferDurationTime(3000, 10123);
-        mTranscode.startTransfer(source7, "avc", 0, 0 , 0, "/sdcard/voip-data/result.mp4",
+        mTranscode.setTransferDurationTime(4000, 10123);
+        mTranscode.startTransfer(source7, "hevc", 0, 0 , 1000000, "/sdcard/voip-data/result.mp4",
                 new MiVideoTranscode.TransferCallBack() {
                     public void onTransferEnd() {
                         Log.i("TTTTTTT", " generate target end");

@@ -24,6 +24,7 @@ import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel5;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel51;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel52;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline;
+import static android.media.MediaCodecInfo.CodecProfileLevel.AVCProfileHigh;
 
 public class VideoEncoder {
     private static String TAG = "videoencoder";
@@ -114,6 +115,7 @@ public class VideoEncoder {
                 e.printStackTrace();
             }
         }
+        findHwEncoder(VIDEO_MIME_TYPE);
         encoderCallback = new MediaCodec.Callback() {
             @Override
             public void onInputBufferAvailable(MediaCodec codec, int index) {
@@ -137,10 +139,7 @@ public class VideoEncoder {
                         e.printStackTrace();
                     }
                 }
-                if (info.size > 4 && (encodedData.get(4) & 0x30) == 0 ) {
-//                    Log.i(TAG, " Drop frame pts " + info.presentationTimeUs);
-//                    info.size = 0;
-                }
+
                 if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
 //                    Log.i(TAG, "get encoded frame sps or pps " + "size" + info.size + " ofset " + info.offset + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
 //                            + " " + encodedData.get(1)
@@ -156,16 +155,18 @@ public class VideoEncoder {
                         mEncoderFrames++;
                         encodedData.position(info.offset);
                         encodedData.limit(info.offset + info.size);
+                        Log.i(TAG, "get encoded frame " + info.size + " encode frame num " + mEncoderFrames
+                                + " pts " + info.presentationTimeUs
+                                + " offset " + info.offset
+                                + " pid " + Thread.currentThread().getId() + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
+                                + " " + encodedData.get(1)
+                                + " " + encodedData.get(2)
+                                + " " + encodedData.get(3)
+                                + " " + encodedData.get(4)
+                                + " eof " + (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
+                        //if (mEncoderFrames < 3)
                         mMuxer.writeSampleData(mTrackIndex, encodedData, info);
-//                        Log.i(TAG, "get encoded frame " + info.size + " encode frame num " + mEncoderFrames
-//                                + " pts " + info.presentationTimeUs
-//                                + " offset " + info.offset
-//                                + " pid " + Thread.currentThread().getId() + " nal type " + (encodedData.get(4) & 0x1f) + " " + encodedData.get(0)
-//                                + " " + encodedData.get(1)
-//                                + " " + encodedData.get(2)
-//                                + " " + encodedData.get(3)
-//                                + " " + encodedData.get(4)
-//                                + " eof " + (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
+
 
                     }
                 }
@@ -195,14 +196,21 @@ public class VideoEncoder {
 
             @Override
             public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
-                Log.d(TAG, " Output Format changed " + format);
+
                 if (mTrackIndex >= 0) {
                     throw new RuntimeException("format changed twice");
                 }
+                if (mEncoder.equals(codec)) {
+                    Log.i(TAG, "EEEEEEEEEE WWWWWWWWW thread id " + Thread.currentThread().getId() );
+                }
+
+
                 mTrackIndex = mMuxer.addTrack(mEncoder.getOutputFormat());
+                Log.i(TAG, "add video track " + format + " trackid " + mTrackIndex);
                 if (!mMuxerStarted && mTrackIndex >= 0) {
                     mMuxer.start();
-                    mMuxerStarted = true;
+                    Log.i(TAG, " MMMMMMMM muxer started ");
+
                 }
 
                 while(audioFramequeue.size() > 0) {
@@ -210,12 +218,11 @@ public class VideoEncoder {
                     mMuxer.writeSampleData(mAudioTrackIndex, frame.buffer, frame.info);
                     audioFramequeue.remove();
                 }
-
-
+                mMuxerStarted = true;
             }
         };
         setupEncoder();
-        findHwEncoder(VIDEO_MIME_TYPE);
+
     }
 
     public void flush() {
@@ -230,10 +237,9 @@ public class VideoEncoder {
         MediaFormat format = MediaFormat.createVideoFormat(VIDEO_MIME_TYPE, mWidth, mHeight);
         int frameRate = mFps;
         // Set some required properties. The media codec may fail if these aren't defined.
-        format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
-        MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        //format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileBaseline);
-        //format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel4);
+        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+        //format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileHigh);
+        //format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
         if (mBitrate <= 0) {
             mBitrate = (int)(mWidth*mHeight*4*2);
         }
@@ -249,6 +255,7 @@ public class VideoEncoder {
         // Create a MediaCodec encoder and configure it. Get a Surface we can use for recording into.
         try {
             mEncoder = MediaCodec.createEncoderByType(VIDEO_MIME_TYPE);
+            //mEncoder = MediaCodec.createByCodecName("OMX.qcom.video.encoder.avc");////("OMX.google.h264.encoder");
             mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             mInputSurface = mEncoder.createInputSurface();
             if (mAsync)
@@ -266,20 +273,25 @@ public class VideoEncoder {
         String mime = format.getString(MediaFormat.KEY_MIME);
         if (mime.startsWith("audio" +"/")) {
             mAudioTrackIndex = mMuxer.addTrack(format);
+            Log.i(TAG, "add audio track " + format + " trackid " + mAudioTrackIndex);
         } else {
-            mTrackIndex = mMuxer.addTrack(format);
+            //mTrackIndex = mMuxer.addTrack(format);
         }
         if (mTrackIndex != -1 && mAudioTrackIndex != -1) {
-            mMuxer.start();
-            mMuxerStarted = true;
+            Log.i(TAG, "WWWWWWWWWWWWWWWWw");
+//            mMuxer.start();
+//            mMuxerStarted = true;
         }
 
     }
 
     public void writeAudioSample(MoviePlayer.AudioFrame frame) {
         if (!mMuxerStarted) {
+            Log.i(TAG, "add queue pid " +  Thread.currentThread().getId());
             audioFramequeue.add(frame);
             return;
+        } else {
+
         }
         mMuxer.writeSampleData(mAudioTrackIndex, frame.buffer, frame.info);
     }
@@ -402,8 +414,18 @@ public class VideoEncoder {
     // Bitrate mode
     private static final int VIDEO_ControlRateConstant = 2;
 
+    private static void displayDecoders() {
+        MediaCodecList list = new MediaCodecList(MediaCodecList.ALL_CODECS);//REGULAR_CODECS参考api说明
+        MediaCodecInfo[] codecs = list.getCodecInfos();
+        for (MediaCodecInfo codec : codecs) {
+            if (!codec.isEncoder())
+                continue;
+            Log.i(TAG, "displayDecoders: "+codec.getName());
+        }
+    }
 
     private static void findHwEncoder(String mime) {
+        displayDecoders();
         try {
             Log.i(TAG, "sdk version is: "+  Build.VERSION.SDK_INT);
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)

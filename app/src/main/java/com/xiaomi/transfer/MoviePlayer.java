@@ -260,6 +260,7 @@ public class MoviePlayer {
             String mime = format.getString(MediaFormat.KEY_MIME);
             decoder = MediaCodec.createDecoderByType(mime);
             decoder.configure(format, mOutputSurface, null, 0);
+            //decoder.configure(format, null, null, 0);
             decoder.start();
 
             doExtract(extractor, trackIndex, decoder, mFrameCallback);
@@ -369,6 +370,7 @@ public class MoviePlayer {
                         frame.info = new MediaCodec.BufferInfo();
                         frame.info.set(0, audioSize, extractor.getSampleTime(), extractor.getSampleFlags());
                         mFrameCallback.onAudioFrame(frame);
+                        Log.i(TAG, "get audio time " + frame.info.presentationTimeUs);
                         // event
                         extractor.advance();
 
@@ -442,6 +444,37 @@ public class MoviePlayer {
                 } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     MediaFormat newFormat = decoder.getOutputFormat();
                     if (VERBOSE) Log.d(TAG, "decoder output format changed: " + newFormat);
+
+                    if(newFormat.containsKey("crop-top"))
+                    {
+                        int cropTop = newFormat.getInteger("crop-top");
+                        Log.d(TAG, "Crop-top:" + cropTop);
+                    }
+                    if(newFormat.containsKey("crop-bottom"))
+                    {
+                        int cropBottom = newFormat.getInteger("crop-bottom");
+                        Log.d(TAG, "Crop-bottom:" + cropBottom);
+                    }
+                    if(newFormat.containsKey("crop-left"))
+                    {
+                        int cropLeft = newFormat.getInteger("crop-left");
+                        Log.d(TAG, "Crop-left:" + cropLeft);
+                    }
+                    if(newFormat.containsKey("crop-right"))
+                    {
+                        int cropRight = newFormat.getInteger("crop-right");
+                        Log.d(TAG, "Crop-right:" + cropRight);
+                    }
+                    // 判断输出格式是否支持
+                    if (newFormat.containsKey(MediaFormat.KEY_COLOR_FORMAT)) {
+                        newFormat.getInteger(MediaFormat.KEY_COLOR_FORMAT);
+                        Log.d(TAG, "Color format:" + newFormat.getInteger(MediaFormat.KEY_COLOR_FORMAT));
+                    }
+                    int keyStride = newFormat.getInteger(MediaFormat.KEY_STRIDE);
+                    int keyStrideHeight = newFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT);
+                    Log.d(TAG, " stride:" + keyStride +  " height stride:" + keyStrideHeight );
+
+
                 } else if (decoderStatus < 0) {
                     throw new RuntimeException(
                             "unexpected result from decoder.dequeueOutputBuffer: " +
@@ -455,8 +488,9 @@ public class MoviePlayer {
                         firstInputTimeNsec = 0;
                     }
                     boolean doLoop = false;
-                    if (VERBOSE) Log.d(TAG, "surface decoder given buffer " + decoderStatus +
-                            " (size=" + mBufferInfo.size + ")");
+                    //if (VERBOSE)
+                        Log.d(TAG, "surface decoder given buffer " + decoderStatus +
+                            " (size=" + mBufferInfo.size + ")" + decoder.getOutputBuffer(decoderStatus));
                     if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                          Log.i(TAG, "output EOS");
                         if (mLoop) {
@@ -484,7 +518,7 @@ public class MoviePlayer {
 
                     long t1 = System.currentTimeMillis();
                     mOutputFrames++;
-                    Log.i(TAG, "post output frames " + mOutputFrames + " pid " + Thread.currentThread().getId()
+                    Log.i(TAG, "post output frames " + mOutputFrames + " size " + mBufferInfo.size +  " pid " + Thread.currentThread().getId()
                                 + " used " + (t1 - decoder_used_time)
                                 + " pid " + Thread.currentThread().getId()
                                 + " pts " + presentTime

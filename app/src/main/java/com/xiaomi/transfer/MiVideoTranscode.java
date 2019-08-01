@@ -350,8 +350,12 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
     @Override
     public void onAudioFrame(MoviePlayer.AudioFrame frame) {
-        Message msg = mGlHandler.obtainMessage(CMD_AUDIO_BYTE, frame);
-        mGlHandler.sendMessage(msg);
+        long timeStamp = frame.info.presentationTimeUs;
+        if ((mSeekStartMS == -1 || timeStamp >= mSeekStartMS*1000) && (mSeekEndMS == -1 || timeStamp <= mSeekEndMS*1000) ) {
+            Log.i(TAG, " to write audio " + timeStamp);
+            Message msg = mGlHandler.obtainMessage(CMD_AUDIO_BYTE, frame);
+            mGlHandler.sendMessage(msg);
+        }
     }
 
     @Override
