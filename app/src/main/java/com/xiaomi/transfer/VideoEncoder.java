@@ -26,7 +26,7 @@ import static android.media.MediaCodecInfo.CodecProfileLevel.AVCLevel52;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline;
 import static android.media.MediaCodecInfo.CodecProfileLevel.AVCProfileHigh;
 
-public class VideoEncoder {
+public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
     private static String TAG = "videoencoder";
     private static final int IFRAME_INTERVAL = 1;
 
@@ -50,12 +50,33 @@ public class VideoEncoder {
     private MediaCodec.BufferInfo mBufferInfo;
     private int mNum = 0;
 
-    private boolean mDump = true;
+    private boolean mDump = false;
     private FileOutputStream mOutputStream;
     private String mDumpPath = "";
 
+    private AudioEncoder mAudioEncoder;
+
     private boolean mAsync = true;
     private Queue<MoviePlayer.AudioFrame> audioFramequeue = new LinkedList<MoviePlayer.AudioFrame>();
+
+    @Override
+    public void onAudioEncodedFrame(ByteBuffer bytes, MediaCodec.BufferInfo info) {
+        if (!mMuxerStarted) {
+            MoviePlayer.AudioFrame frame = new MoviePlayer.AudioFrame();
+            frame.info = info;
+            frame.buffer = bytes;
+            audioFramequeue.add(frame);
+            return;
+        }
+        mMuxer.writeSampleData(mAudioTrackIndex, bytes, info);
+    }
+
+    @Override
+    public void onAudioFormatChanged(MediaFormat format) {
+        Log.i(TAG, "audio encode format " + format );
+        mAudioTrackIndex = mMuxer.addTrack(format);
+
+    }
 
     public interface VideoEncoderCallBack {
         public void  onVideoEncoderEOF();
@@ -215,7 +236,6 @@ public class VideoEncoder {
                     Log.i(TAG, "EEEEEEEEEE WWWWWWWWW thread id " + Thread.currentThread().getId() );
                 }
 
-
                 mTrackIndex = mMuxer.addTrack(mEncoder.getOutputFormat());
                 Log.i(TAG, "add video track " + format + " trackid " + mTrackIndex);
                 if (!mMuxerStarted && mTrackIndex >= 0) {
@@ -286,28 +306,39 @@ public class VideoEncoder {
     public void addAudioTrack(MediaFormat format) {
         String mime = format.getString(MediaFormat.KEY_MIME);
         if (mime.startsWith("audio" +"/")) {
-            mAudioTrackIndex = mMuxer.addTrack(format);
-            Log.i(TAG, "add audio track " + format + " trackid " + mAudioTrackIndex);
+            //mAudioTrackIndex = mMuxer.addTrack(format);
+            //Log.i(TAG, "add audio track " + format + " trackid " + mAudioTrackIndex);
+
+            Log.i(TAG, " add audio mime " + mime);
+            int audioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+            Log.i(TAG, " add audio channels " + audioChannels);
+            int audioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+            Log.i(TAG, " add audio sample rate " + audioSampleRate);
+            int bitrate = format.getInteger(MediaFormat.KEY_BIT_RATE);
+            Log.i(TAG, " add audio bitrate " + bitrate);
+            int aac_profile = format.getInteger(MediaFormat.KEY_AAC_PROFILE);
+            Log.i(TAG, " add audio profile " + aac_profile);
+//"audio/mp4a-latm"
+            MediaFormat encodeFormat = MediaFormat.createAudioFormat(mime, audioSampleRate, audioChannels);//参数对应-> mime type、采样率、声道数
+            encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);//比特率
+            encodeFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
+            encodeFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 4 * 1024);//作用于inputBuffer的大小
+            mAudioEncoder = new AudioEncoder();
+            mAudioEncoder.initAACMediaEncode(encodeFormat);
+            mAudioEncoder.registerCallback(this);
+
+            //mAudioTrackIndex = mMuxer.addTrack(format);
+
         } else {
             //mTrackIndex = mMuxer.addTrack(format);
         }
-        if (mTrackIndex != -1 && mAudioTrackIndex != -1) {
-            Log.i(TAG, "WWWWWWWWWWWWWWWWw");
-//            mMuxer.start();
-//            mMuxerStarted = true;
-        }
+
 
     }
 
     public void writeAudioSample(MoviePlayer.AudioFrame frame) {
-        if (!mMuxerStarted) {
-            Log.i(TAG, "add queue pid " +  Thread.currentThread().getId());
-            audioFramequeue.add(frame);
-            return;
-        } else {
-
-        }
-        mMuxer.writeSampleData(mAudioTrackIndex, frame.buffer, frame.info);
+       // Log.i(TAG, "to add audio sample " + frame.info.size);
+        mAudioEncoder.encodeAudioFrame(frame.buffer, frame.info);
     }
 
     public void stopEncoder() {
@@ -432,9 +463,9 @@ public class VideoEncoder {
         MediaCodecList list = new MediaCodecList(MediaCodecList.ALL_CODECS);//REGULAR_CODECS参考api说明
         MediaCodecInfo[] codecs = list.getCodecInfos();
         for (MediaCodecInfo codec : codecs) {
-            if (!codec.isEncoder())
-                continue;
-            Log.i(TAG, "displayDecoders: "+codec.getName());
+            //if (!codec.isEncoder())
+             //   continue;
+            Log.i(TAG, "displays:==== "+codec.getName());
         }
     }
 

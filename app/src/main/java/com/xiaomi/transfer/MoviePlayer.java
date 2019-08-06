@@ -23,7 +23,7 @@ import static android.media.MediaExtractor.SEEK_TO_PREVIOUS_SYNC;
  * <p>
  * TODO: needs more advanced shuttle controls (pause/resume, skip)
  */
-public class MoviePlayer {
+public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
     private static final String TAG = "MoviePlayer";
     private static final boolean VERBOSE = false;
 
@@ -51,6 +51,9 @@ public class MoviePlayer {
     private MediaFormat mVideoFromate = null;
     private int mMaxSize = 0;
     private int mMaxAudioSize = 0;
+
+    private AudioDecoder mAudioDecoder;
+
     /**
      * Interface to be implemented by class that manages playback UI.
      * <p>
@@ -60,7 +63,7 @@ public class MoviePlayer {
         void playbackStopped();
     }
 
-    public class AudioFrame {
+    public static class AudioFrame {
         public ByteBuffer buffer;
         public MediaCodec.BufferInfo info;
     }
@@ -216,6 +219,14 @@ public class MoviePlayer {
      * frameCallback.
      */
 
+    @Override
+    public void onAudioFrameDecoded(ByteBuffer data, MediaCodec.BufferInfo info) {
+        AudioFrame frame = new AudioFrame();
+        frame.buffer = data;
+        frame.info = info;
+        mFrameCallback.onAudioFrame(frame);
+    }
+
     int maudioTrack = -1;
     public void play() throws IOException {
         MediaExtractor extractor = null;
@@ -238,6 +249,7 @@ public class MoviePlayer {
             maudioTrack = selectTrack(extractor, "audio");
             if (maudioTrack != -1) {
                 MediaFormat mediaFormat = extractor.getTrackFormat(maudioTrack);
+                Log.i(TAG, " find audio track " + mediaFormat);
                 String mime = mediaFormat.getString(MediaFormat.KEY_MIME);
                 Log.i(TAG, " get audio codec " + mime);
                 int audioChannels = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
@@ -248,11 +260,15 @@ public class MoviePlayer {
                 Log.i(TAG, " get audio input size  " + mMaxAudioSize);
 
                 extractor.selectTrack(maudioTrack);
+                mAudioDecoder = new AudioDecoder();
+                mAudioDecoder.registerCallback(this);
+                mAudioDecoder.InitAudioDecoder(mediaFormat);
             }
 
             extractor.selectTrack(trackIndex);
 
             MediaFormat format = extractor.getTrackFormat(trackIndex);
+            Log.i(TAG, " find video track " + format);
             mMaxSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
             // Create a MediaCodec decoder, and configure it with the MediaFormat from the
             // extractor.  It's very important to use the format from the extractor because
@@ -349,50 +365,47 @@ public class MoviePlayer {
 
         boolean outputDone = false;
         boolean inputDone = false;
+        boolean audioDone = false;
 
         extractor.seekTo(mSeekPosMS*1000, SEEK_TO_PREVIOUS_SYNC);
-        while (!outputDone) {
+        while (!outputDone || !audioDone) {
             if (VERBOSE) Log.d(TAG, "loop");
             if (mIsStopRequested) {
                 Log.d(TAG, "Stop requested");
+                mAudioDecoder.release();
                 break;
             }
             long presentTime = 0;
 
             int Index = extractor.getSampleTrackIndex();
             if (Index == maudioTrack) {
-                AudioFrame frame = new AudioFrame();
-                frame.buffer = ByteBuffer.allocate(mMaxAudioSize);
-                int audioSize = extractor.readSampleData(frame.buffer, 0);
+                int index = mAudioDecoder.getNextDecoderBufferIndex();
 
-                if (audioSize > 0)
-                    if (extractor.getSampleTrackIndex() == maudioTrack) {
-                        frame.info = new MediaCodec.BufferInfo();
-                        frame.info.set(0, audioSize, extractor.getSampleTime(), extractor.getSampleFlags());
-                        mFrameCallback.onAudioFrame(frame);
-                        Log.i(TAG, "get audio time " + frame.info.presentationTimeUs);
-                        // event
-                        extractor.advance();
+                int audioSize = extractor.readSampleData(mAudioDecoder.getNextDecoderBuffer(index), 0);
+                //    public void queueInputBuffer(int index, int samples, long timeStamp, int flags)
 
-                        continue;
-                    }
-                if (audioSize <= 0) {
+                if (audioSize <= 0 || mIsStopRequested) {
                     Log.i(TAG,"EEEEEEEEEEEEEEE ");
-                    //break;
-                }
-            } else {
+                    mAudioDecoder.queueInputBuffer(index, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                    audioDone = true;
 
+                } else {
+                    Log.i(TAG, "get sample from mp4 size " + audioSize + " time " + extractor.getSampleTime() + " flags " + extractor.getSampleFlags());
+                    mAudioDecoder.queueInputBuffer(index, audioSize, extractor.getSampleTime(), extractor.getSampleFlags());
+                    // event
+                    extractor.advance();
+                    continue;
+                }
             }
 
-
             // Feed more data to the decoder.
-            if (!inputDone) {
+            if (!inputDone && !outputDone) {
                 int inputBufIndex = decoder.dequeueInputBuffer(TIMEOUT_USEC);
                 if (inputBufIndex >= 0) {
                     if (firstInputTimeNsec == -1) {
                         firstInputTimeNsec = System.nanoTime();
                     }
-                    ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
+                    ByteBuffer inputBuf = decoder.getInputBuffer(inputBufIndex);//decoderInputBuffers[inputBufIndex];
                     // Read the sample data into the ByteBuffer.  This neither respects nor
                     // updates inputBuf's position, limit, etc.
                     int chunkSize = extractor.readSampleData(inputBuf, 0);
@@ -493,6 +506,7 @@ public class MoviePlayer {
                             " (size=" + mBufferInfo.size + ")" + decoder.getOutputBuffer(decoderStatus));
                     if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                          Log.i(TAG, "output EOS");
+                        //mAudioDecoder.release();
                         if (mLoop) {
                             doLoop = true;
                         } else {
