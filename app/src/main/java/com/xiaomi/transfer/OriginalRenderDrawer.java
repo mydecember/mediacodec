@@ -23,12 +23,12 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
     protected void onCreated() {
     }
     @Override
-    protected void release() {
-
+    public void release() {
+        super.release();
     }
     @Override
     protected void onChanged(int width, int height) {
-        mOutputTextureId = GlesUtil.createFrameTexture(width, height);
+        //mOutputTextureId = GlesUtil.createFrameTexture(width, height);
 
         av_Position = GLES30.glGetAttribLocation(mProgram, "av_Position");
         af_Position = GLES30.glGetAttribLocation(mProgram, "af_Position");
@@ -38,7 +38,7 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
 
     @Override
     protected void onDraw() {
-        if (mInputTextureId == 0 || mOutputTextureId == 0) {
+        if (mInputTextureId == 0 ){//|| mOutputTextureId == 0) {
             Log.i("TAG", "not inited");
             return;
         }
@@ -82,10 +82,10 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
         mInputTextureId = textureId;
     }
 
-    @Override
-    public int getOutputTextureId() {
-        return mOutputTextureId;
-    }
+//    @Override
+//    public int getOutputTextureId() {
+//        return mOutputTextureId;
+//    }
 
     @Override
     protected String getVertexSource() {

@@ -150,7 +150,10 @@ public class AudioEncoder {
                 //TODO something
             }else if(outIndex==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){
                 if (mAudioCallback != null) {
+
                     mAudioCallback.onAudioFormatChanged(mCodec.getOutputFormat());
+                    ByteBuffer csd = mCodec.getOutputFormat().getByteBuffer("csd-0");
+                    Log.i(TAG, " ccccccc " + (csd.get(0) &0xff ) + " " + (csd.get(1) &0xff ));
                 }
 
                 //break;

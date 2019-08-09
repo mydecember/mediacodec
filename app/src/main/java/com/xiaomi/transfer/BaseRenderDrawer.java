@@ -31,6 +31,8 @@ public abstract class BaseRenderDrawer {
     private FloatBuffer mFrameTextureBuffer;
     protected int mFrameTextureBufferId;
 
+    protected GLFrameBuffer mFbo;
+
     protected float vertexData[] = {
             -1f, -1f,// 左下角
             1f, -1f, // 右下角
@@ -81,28 +83,40 @@ public abstract class BaseRenderDrawer {
     }
 
     public void create() {
+        mFbo = new GLFrameBuffer();
         mProgram = GlesUtil.createProgram(getVertexSource(), getFragmentSource());
         initVertexBufferObjects();
         onCreated();
     }
 
     public void surfaceChangedSize(int width, int height) {
+        mFbo.initiate(width, height, 0);
+        GlUtil.checkGlError("fbo initated error ");
         this.width = width;
         this.height = height;
         onChanged(width, height);
     }
 
     public void draw(long timestamp, float[] transformMatrix){
-        clear();
         useProgram();
+        GlUtil.checkGlError("glUseProgram ");
+        mFbo.bind();
+
+        clear();
+
+
         viewPort(0, 0, width, height);
         onDraw();
+        GLES30.glFlush();
+        mFbo.unBind();
+        GlUtil.checkGlError("unBind error");
     }
 
     protected void clear(){
         GLES30.glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-        //GLES20.glClearColor(0f, 0f, 0f, 1f);
+        GlUtil.checkGlError("clear 1");
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
+        GlUtil.checkGlError("clear 2");
     }
 
     protected void initVertexBufferObjects() {
@@ -169,7 +183,9 @@ public abstract class BaseRenderDrawer {
 
     public abstract void setInputTextureId(int textureId);
 
-    public abstract int getOutputTextureId();
+    public int getOutputTextureId() {
+        return mFbo.getTexture();
+    }
 
     protected abstract String getVertexSource();
 
@@ -181,6 +197,9 @@ public abstract class BaseRenderDrawer {
 
     protected abstract void onDraw();
 
-    protected abstract void release();
+    public void release() {
+        if (mFbo != null)
+        mFbo.release();
+    }
 
 }

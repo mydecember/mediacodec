@@ -318,6 +318,10 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
             Log.i(TAG, " add audio bitrate " + bitrate);
             int aac_profile = format.getInteger(MediaFormat.KEY_AAC_PROFILE);
             Log.i(TAG, " add audio profile " + aac_profile);
+
+            ByteBuffer csd = format.getByteBuffer("csd-0");
+            Log.i(TAG, " ccccccc csd " + (csd.get(0) &0xff ) + " " + (csd.get(1) &0xff ));
+
 //"audio/mp4a-latm"
             MediaFormat encodeFormat = MediaFormat.createAudioFormat(mime, audioSampleRate, audioChannels);//参数对应-> mime type、采样率、声道数
             encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);//比特率

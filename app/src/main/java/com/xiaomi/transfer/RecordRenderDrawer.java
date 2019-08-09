@@ -55,8 +55,8 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         this.mCodecName = codecName;
     }
     @Override
-    protected void release() {
-
+    public void release() {
+        super.release();
     }
 
     @Override

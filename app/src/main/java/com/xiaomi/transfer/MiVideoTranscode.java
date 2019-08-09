@@ -2,17 +2,19 @@ package com.xiaomi.transfer;
 
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
-import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.opengl.EGLSurface;
 import android.opengl.GLES30;
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
+
+import com.xiaomi.transfer.smooth.BeautySmoothDrawer;
+import com.xiaomi.transfer.smooth.GaussianBlur;
+import com.xiaomi.transfer.smooth.RgbToYuv;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,9 +41,10 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     private SurfaceTexture mSurfaceTexture;
     private RecordRenderDrawer mRecordDrawer;
     private WaterRenderDrawer mWaterDraer;
-
-    private GaussianBlur mVerticalGaussianDrawer;
-    private GaussianBlur mHorizontalGaussianDrawer;
+    private BeautySmoothDrawer mSmoothDrawer;
+//    private GaussianBlur mVerticalGaussianDrawer;
+//    private GaussianBlur mHorizontalGaussianDrawer;
+//    private RgbToYuv mRgbToYuvDrawer;
     //private String mSourceFile = "/sdcard/voip-data/VID_20190619_201101.mp4";
     //private String mSourceFile = "/sdcard/voip-data/mi_h265_4k.mp4";//
     private String mSourceFile = "/sdcard/voip-data/source_avc_1920_1080.mp4";
@@ -63,15 +66,29 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
         mRecordDrawer = new RecordRenderDrawer(this);
         mOriginalDrawer = new OriginalRenderDrawer();
         mWaterDraer = new WaterRenderDrawer(null);
-
-        mVerticalGaussianDrawer = new GaussianBlur(0);
-        mHorizontalGaussianDrawer = new GaussianBlur(1);
+        mSmoothDrawer = new BeautySmoothDrawer();
+//        mVerticalGaussianDrawer = new GaussianBlur(0);
+//        mHorizontalGaussianDrawer = new GaussianBlur(1);
+//
+//        mRgbToYuvDrawer = new RgbToYuv();
 //        mThread = new HandlerThread("GL thread");
 //        mThread.start();
 //        mGlHandler = new GLHandler(mThread.getLooper());
 //        Message msg = mGlHandler.obtainMessage(CMD_INIT);
 //        mGlHandler.removeMessages(CMD_INIT);
 //        mGlHandler.sendMessageDelayed(msg, 0);
+    }
+
+    private void release() {
+        if (mRecordDrawer != null)
+        mRecordDrawer.release();
+        if (mOriginalDrawer != null)
+        mOriginalDrawer.release();
+        if (mWaterDraer != null)
+        mWaterDraer.release();
+        if (mSmoothDrawer != null) {
+            mSmoothDrawer.release();
+        }
     }
 
     public interface TransferCallBack {
@@ -197,7 +214,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
     private int mCameraTextureId;
     private EGLSurface mGLSurface;
     private OriginalRenderDrawer mOriginalDrawer;
-    private int mFrameBuffer;
+    //private int mFrameBuffer;
     private long mStartTime = 0;
     private class GLHandler extends Handler {
 
@@ -212,7 +229,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mEgl = EglBase.create();
                     mEgl.createPbufferSurface(GlUtil.mWidht, GlUtil.mHeight);
                     mEgl.makeCurrent();
-                    mFrameBuffer = GlesUtil.createFrameBuffer();
+                   // mFrameBuffer = GlesUtil.createFrameBuffer();
 
 
                     mCameraTextureId = GlesUtil.createCameraTexture();
@@ -225,14 +242,26 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mOriginalDrawer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
                     int textureId = mOriginalDrawer.getOutputTextureId();
 
+                    mSmoothDrawer.create();;
+                    mSmoothDrawer.setInputTextureId(textureId);
+                    mSmoothDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
+                    textureId = mSmoothDrawer.getOutputTextureId();
 
-                    mVerticalGaussianDrawer.create();
-                    mVerticalGaussianDrawer.setInputTextureId(textureId);
-                    mVerticalGaussianDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
+//                    mRgbToYuvDrawer.create();
+//                    mRgbToYuvDrawer.setInputTextureId(textureId);
+//                    mRgbToYuvDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
+//                    textureId = mRgbToYuvDrawer.getOutputTextureId();
+//
+//                    mVerticalGaussianDrawer.create();
+//                    mVerticalGaussianDrawer.setInputTextureId(textureId);
+//                    mVerticalGaussianDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
+//                    textureId = mVerticalGaussianDrawer.getOutputTextureId();
 
-                    mHorizontalGaussianDrawer.create();
-                    mHorizontalGaussianDrawer.setInputTextureId(textureId);
-                    mHorizontalGaussianDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
+//                    mHorizontalGaussianDrawer.create();
+//                    mHorizontalGaussianDrawer.setInputTextureId(textureId);
+//                    mHorizontalGaussianDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
+//                    textureId = mHorizontalGaussianDrawer.getOutputTextureId();
+
 
                     //GlesUtil.bindFrameTexture(mFrameBuffer, textureId);
 
@@ -246,6 +275,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mRecordDrawer.setInputTextureId(textureId);
                     mRecordDrawer.startRecord();
 
+
                     mRecordDrawer.addAudioFormat(player.getAudioFromate());
                     mPlayTask.execute();
                     break;
@@ -254,21 +284,30 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     float[] mtx = new float[16];;
                     mSurfaceTexture.getTransformMatrix(mtx);
                     long timeStamp = mSurfaceTexture.getTimestamp();
-                    GlesUtil.bindFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
+                    //GlesUtil.bindFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
 
                     mOriginalDrawer.draw(timeStamp, mtx);
-                    GLES30.glFlush();
-                    GlesUtil.unBindFrameBuffer();
 
-                    GlesUtil.bindFrameBuffer(mFrameBuffer, mVerticalGaussianDrawer.getOutputTextureId());
-                    mVerticalGaussianDrawer.draw(timeStamp, mtx);
-                    GLES30.glFlush();
-                    GlesUtil.unBindFrameBuffer();
+                    //GlesUtil.unBindFrameBuffer();
 
-                    GlesUtil.bindFrameBuffer(mFrameBuffer, mHorizontalGaussianDrawer.getOutputTextureId());
-                    mHorizontalGaussianDrawer.draw(timeStamp, mtx);
-                    GLES30.glFlush();
-                    GlesUtil.unBindFrameBuffer();
+                    //GlesUtil.bindFrameBuffer(mFrameBuffer, mRgbToYuvDrawer.getOutputTextureId());
+                    //mRgbToYuvDrawer.draw(timeStamp, mtx);
+
+                    mSmoothDrawer.draw(timeStamp, mtx);
+
+                    //GlesUtil.unBindFrameBuffer();
+
+
+                    //GlesUtil.bindFrameBuffer(mFrameBuffer, mVerticalGaussianDrawer.getOutputTextureId());
+                    //mVerticalGaussianDrawer.draw(timeStamp, mtx);
+                    //GlesUtil.unBindFrameBuffer();
+//
+//                    GlesUtil.bindFrameBuffer(mFrameBuffer, mHorizontalGaussianDrawer.getOutputTextureId());
+//                    mHorizontalGaussianDrawer.draw(timeStamp, mtx);
+//                    GLES30.glFlush();
+//                    GlesUtil.unBindFrameBuffer();
+
+
 
 
 
@@ -283,7 +322,8 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     if (mCaptureOne < 3) {
                         // save bmp
                         ByteBuffer mBuffer = ByteBuffer.allocateDirect(GlUtil.mWidht * GlUtil.mHeight * 4);
-                        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mFrameBuffer);
+
+                        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mSmoothDrawer.getOutputTextureId());
                         ByteBuffer buf =  mBuffer;
                         buf.order(ByteOrder.LITTLE_ENDIAN);
                         GLES30.glReadPixels(0, 0, GlUtil.mWidht, GlUtil.mHeight, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
@@ -324,10 +364,11 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     break;
                 case CMD_RELEASE:
                     if (mOriginalDrawer != null) {
-                        GlesUtil.deleteFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
+                       // GlesUtil.deleteFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
                         Log.i(TAG, " detete frame ");
                     }
 
+                    release();
                     if (mRecordDrawer != null) {
                         mRecordDrawer.quit();
                         mRecordDrawer = null;

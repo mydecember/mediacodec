@@ -25,18 +25,18 @@ public class WaterRenderDrawer extends BaseRenderDrawer {
         this.mInputTextureId = textureId;
     }
 
-    @Override
-    public int getOutputTextureId() {
-        return mInputTextureId;
-    }
+//    @Override
+//    public int getOutputTextureId() {
+//        return mInputTextureId;
+//    }
 
     @Override
     protected void onCreated() {
 
     }
 
-    protected void release() {
-
+    public void release() {
+        super.release();
     }
 
     public void setWater(String str) {
