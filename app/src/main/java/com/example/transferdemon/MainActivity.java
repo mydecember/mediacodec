@@ -17,6 +17,8 @@ import android.widget.Button;
 
 import com.xiaomi.transfer.MiVideoTranscode;
 
+import org.webrtc.AVDemuxer;
+
 public class MainActivity extends AppCompatActivity {
     private static final int CMD_START = 0x01;
     private static final int CMD_STOP = 0x02;
@@ -103,29 +105,44 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void start() {
-        mTranscode = new MiVideoTranscode();
-        String source1 = "/sdcard/voip-data/VID_20190619_201101.mp4";
-        String source2 = "/sdcard/voip-data/mi_h265_4k.mp4";
-        String source3 = "/sdcard/voip-data/source_avc_1920_1080.mp4";
-        String source4 = "/sdcard/voip-data/mi_720.mp4";
-        String source5 = "/sdcard/voip-data/result_huawei.mp4";
-        String source6 = "/sdcard/voip-data/VID_mi_num.mp4";
-       String source7 = "/sdcard/voip-data/dou.mp4";
-        String source8 = "/sdcard/voip-data/832_468.mp4";
-        String source9 = "/sdcard/voip-data/liyuan.mp4";
+        boolean sel = false;
+        if (sel ) {
+            AVDemuxer.TestAsync();
+            //AVDemuxer.Test();
+            //AVDemuxer.TestReadfile();
+        } else {
+            mTranscode = new MiVideoTranscode();
+            String source1 = "/sdcard/voip-data/VID_20190619_201101.mp4";
+            String source2 = "/sdcard/voip-data/mi_h265_4k.mp4";
+            String source3 = "/sdcard/voip-data/source_avc_1920_1080.mp4";
+            String source4 = "/sdcard/voip-data/mi_720.mp4";
+            String source5 = "/sdcard/voip-data/result_huawei.mp4";
+            String source6 = "/sdcard/voip-data/VID_mi_num.mp4";
+            String source7 = "/sdcard/voip-data/dou.mp4";
+            String source8 = "/sdcard/voip-data/832_468.mp4";
+            //String source9 = "/sdcard/voip-data/liyuan.mp4";
+            //String source9 = "/sdcard/voip-data/tmp.mov";
+            //String source9 = "/sdcard/voip-data/pingfandeyitian.mp3";
+            //String source9 = "/sdcard/voip-data/demo.mkv";
+            String source9 = "/sdcard/voip-data/video_360_640.mp4";
+            String source10 = "/sdcard/voip-data/huawei_4k.mp4";
 
-        mTranscode.setTransferDurationTime(0, 10123);
-        mTranscode.startTransfer(source9, "avc", 0, 0 , 0, "/sdcard/voip-data/result.mp4",
-                new MiVideoTranscode.TransferCallBack() {
-                    public void onTransferEnd() {
-                        Log.i("TTTTTTT", " generate target end");
-                        if (mIsLoop)
-                            mThreadHandler.sendEmptyMessage(CMD_STOP);
-                    }
-                    public void onTransferFailed() {
 
-                    }
-                });
+            //mTranscode.setTransferDurationTime(0, 10123);
+            mTranscode.startTransfer(source7, "avc", 0, 0 , 0, "/sdcard/voip-data/result.mp4",
+                    new MiVideoTranscode.TransferCallBack() {
+                        public void onTransferEnd() {
+                            Log.i("TTTTTTT", " generate target end");
+                            if (mIsLoop)
+                                mThreadHandler.sendEmptyMessage(CMD_STOP);
+                        }
+                        public void onTransferFailed() {
+
+                        }
+                    });
+        }
+//
+
     }
     private  void stop() {
         if (mTranscode != null) {

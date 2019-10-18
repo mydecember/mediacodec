@@ -52,7 +52,15 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
     private int mMaxSize = 0;
     private int mMaxAudioSize = 0;
 
+    private static  final  int AUDIO_ONLY = 1;
+    private  int VIDEO_ONLY = 2;
+    private  int AUDIO_VIDEO = 3;
+    private int mSelectStream = 2;
+
     private AudioDecoder mAudioDecoder;
+
+    private volatile  boolean mNotwait = false;
+
 
     /**
      * Interface to be implemented by class that manages playback UI.
@@ -142,14 +150,22 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
         try {
             extractor = new MediaExtractor();
             extractor.setDataSource(sourceFile.toString());
-            int audioIndex = selectTrack(extractor, "audio");
-            if (audioIndex != -1) {
-                mAudioFromate = extractor.getTrackFormat(audioIndex);
-                mFrameCallback.onAudioFormat(mAudioFromate);
+            if ((mSelectStream & AUDIO_ONLY) == AUDIO_ONLY) {
+                int audioIndex = selectTrack(extractor, "audio");
+                if (audioIndex != -1) {
+                    mAudioFromate = extractor.getTrackFormat(audioIndex);
+                    mFrameCallback.onAudioFormat(mAudioFromate);
+                }
+
+            }
+
+            if ((mSelectStream & VIDEO_ONLY) != VIDEO_ONLY) {
+                return;
             }
             int trackIndex = selectTrack(extractor);
             if (trackIndex < 0) {
-                throw new RuntimeException("No video track found in " + mSourceFile);
+                return;
+                //throw new RuntimeException("No video track found in " + mSourceFile);
             }
             extractor.selectTrack(trackIndex);
             MediaFormat format = extractor.getTrackFormat(trackIndex);
@@ -241,45 +257,51 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
         try {
             extractor = new MediaExtractor();
             extractor.setDataSource(mSourceFile.toString());
-            int trackIndex = selectTrack(extractor);
-            if (trackIndex < 0) {
-                throw new RuntimeException("No video track found in " + mSourceFile);
+            if ((mSelectStream & AUDIO_ONLY) == AUDIO_ONLY)  {
+                maudioTrack = selectTrack(extractor, "audio");
+                if (maudioTrack != -1) {
+                    MediaFormat mediaFormat = extractor.getTrackFormat(maudioTrack);
+                    Log.i(TAG, " find audio track " + mediaFormat);
+                    String mime = mediaFormat.getString(MediaFormat.KEY_MIME);
+                    Log.i(TAG, " get audio codec " + mime);
+                    int audioChannels = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                    Log.i(TAG, " get audio channels " + audioChannels);
+                    int audioSampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                    Log.i(TAG, " get audio sampleRate " + audioSampleRate);
+                    mMaxAudioSize = mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+                    Log.i(TAG, " get audio input size  " + mMaxAudioSize);
+
+                    extractor.selectTrack(maudioTrack);
+                    mAudioDecoder = new AudioDecoder();
+                    mAudioDecoder.registerCallback(this);
+                    mAudioDecoder.InitAudioDecoder(mediaFormat);
+                }
             }
 
-            maudioTrack = selectTrack(extractor, "audio");
-            if (maudioTrack != -1) {
-                MediaFormat mediaFormat = extractor.getTrackFormat(maudioTrack);
-                Log.i(TAG, " find audio track " + mediaFormat);
-                String mime = mediaFormat.getString(MediaFormat.KEY_MIME);
-                Log.i(TAG, " get audio codec " + mime);
-                int audioChannels = mediaFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
-                Log.i(TAG, " get audio channels " + audioChannels);
-                int audioSampleRate = mediaFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
-                Log.i(TAG, " get audio sampleRate " + audioSampleRate);
-                mMaxAudioSize = mediaFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
-                Log.i(TAG, " get audio input size  " + mMaxAudioSize);
 
-                extractor.selectTrack(maudioTrack);
-                mAudioDecoder = new AudioDecoder();
-                mAudioDecoder.registerCallback(this);
-                mAudioDecoder.InitAudioDecoder(mediaFormat);
+            if ((mSelectStream & VIDEO_ONLY) == VIDEO_ONLY) {
+                int trackIndex = selectTrack(extractor);
+                if (trackIndex < 0) {
+                    //throw new RuntimeException("No video track found in " + mSourceFile);
+                }
+                if (trackIndex >= 0) {
+                    extractor.selectTrack(trackIndex);
+
+                    MediaFormat format = extractor.getTrackFormat(trackIndex);
+                    Log.i(TAG, " find video track " + format);
+                    mMaxSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+                    // Create a MediaCodec decoder, and configure it with the MediaFormat from the
+                    // extractor.  It's very important to use the format from the extractor because
+                    // it contains a copy of the CSD-0/CSD-1 codec-specific data chunks.
+                    String mime = format.getString(MediaFormat.KEY_MIME);
+                    decoder = MediaCodec.createDecoderByType(mime);
+                    decoder.configure(format, mOutputSurface, null, 0);
+                    //decoder.configure(format, null, null, 0);
+                    decoder.start();
+                }
             }
 
-            extractor.selectTrack(trackIndex);
-
-            MediaFormat format = extractor.getTrackFormat(trackIndex);
-            Log.i(TAG, " find video track " + format);
-            mMaxSize = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
-            // Create a MediaCodec decoder, and configure it with the MediaFormat from the
-            // extractor.  It's very important to use the format from the extractor because
-            // it contains a copy of the CSD-0/CSD-1 codec-specific data chunks.
-            String mime = format.getString(MediaFormat.KEY_MIME);
-            decoder = MediaCodec.createDecoderByType(mime);
-            decoder.configure(format, mOutputSurface, null, 0);
-            //decoder.configure(format, null, null, 0);
-            decoder.start();
-
-            doExtract(extractor, trackIndex, decoder, mFrameCallback);
+            doExtract(extractor, -1, decoder, mFrameCallback);
         } catch (Exception e) {
             e.printStackTrace();
             Log.i(TAG, " " + "eerrr0r");
@@ -344,6 +366,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
         }
         synchronized (mWaitEvent) {
             mWaitEvent.notifyAll();
+            mNotwait = true;
         }
 
     }
@@ -357,7 +380,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
 
 
         final int TIMEOUT_USEC = 10000;
-        ByteBuffer[] decoderInputBuffers = decoder.getInputBuffers();
+        //ByteBuffer[] decoderInputBuffers = decoder.getInputBuffers();
         int inputChunk = 0;
         long firstInputTimeNsec = -1;
 
@@ -366,6 +389,8 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
         boolean outputDone = false;
         boolean inputDone = false;
         boolean audioDone = false;
+
+        long start_time = System.currentTimeMillis();
 
         extractor.seekTo(mSeekPosMS*1000, SEEK_TO_PREVIOUS_SYNC);
         while (!outputDone || !audioDone) {
@@ -378,7 +403,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
             long presentTime = 0;
 
             int Index = extractor.getSampleTrackIndex();
-            if (Index == maudioTrack) {
+            if (Index == maudioTrack && Index > 0) {
                 int index = mAudioDecoder.getNextDecoderBufferIndex();
 
                 int audioSize = extractor.readSampleData(mAudioDecoder.getNextDecoderBuffer(index), 0);
@@ -390,7 +415,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                     audioDone = true;
 
                 } else {
-                    Log.i(TAG, "get sample from mp4 size " + audioSize + " time " + extractor.getSampleTime() + " flags " + extractor.getSampleFlags());
+                    //Log.i(TAG, "get audio sample from mp4 size " + audioSize + " time " + extractor.getSampleTime() + " flags " + extractor.getSampleFlags());
                     mAudioDecoder.queueInputBuffer(index, audioSize, extractor.getSampleTime(), extractor.getSampleFlags());
                     // event
                     extractor.advance();
@@ -399,7 +424,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
             }
 
             // Feed more data to the decoder.
-            if (!inputDone && !outputDone) {
+            if (!inputDone && !outputDone && decoder != null) {
                 int inputBufIndex = decoder.dequeueInputBuffer(TIMEOUT_USEC);
                 if (inputBufIndex >= 0) {
                     if (firstInputTimeNsec == -1) {
@@ -418,12 +443,12 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                         inputDone = true;
                         Log.d(TAG, "sent input EOS");
                     } else {
-                        if (extractor.getSampleTrackIndex() != trackIndex) {
-                            Log.w(TAG, "WEIRD: got sample from track " +
-                                    extractor.getSampleTrackIndex() + ", expected " + trackIndex);
-                        }
+//                        if (extractor.getSampleTrackIndex() != trackIndex) {
+//                            Log.w(TAG, "WEIRD: got sample from track " +
+//                                    extractor.getSampleTrackIndex() + ", expected " + trackIndex);
+//                        }
                         long presentationTimeUs = extractor.getSampleTime();
-                        Log.i(TAG, " decoder present time " + presentationTimeUs);
+                        //Log.i(TAG, " get video decoder present time " + presentationTimeUs);
                         presentTime = presentationTimeUs;
                         if (mStartTime == 0) {
                             mStartTime = presentationTimeUs;
@@ -456,7 +481,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                     if (VERBOSE) Log.d(TAG, "decoder output buffers changed");
                 } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     MediaFormat newFormat = decoder.getOutputFormat();
-                    if (VERBOSE) Log.d(TAG, "decoder output format changed: " + newFormat);
+                    Log.d(TAG, "decoder output format changed: " + newFormat);
 
                     if(newFormat.containsKey("crop-top"))
                     {
@@ -478,6 +503,9 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                         int cropRight = newFormat.getInteger("crop-right");
                         Log.d(TAG, "Crop-right:" + cropRight);
                     }
+                    int width = newFormat.getInteger(MediaFormat.KEY_WIDTH);
+                    int height = newFormat.getInteger(MediaFormat.KEY_HEIGHT);
+                    Log.d(TAG, "width :" + width + " height:" + height );
                     // 判断输出格式是否支持
                     if (newFormat.containsKey(MediaFormat.KEY_COLOR_FORMAT)) {
                         newFormat.getInteger(MediaFormat.KEY_COLOR_FORMAT);
@@ -501,11 +529,12 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                         firstInputTimeNsec = 0;
                     }
                     boolean doLoop = false;
-                    //if (VERBOSE)
+                    if (VERBOSE)
                         Log.d(TAG, "surface decoder given buffer " + decoderStatus +
                             " (size=" + mBufferInfo.size + ")" + decoder.getOutputBuffer(decoderStatus));
                     if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                         Log.i(TAG, "output EOS");
+                        long end = System.currentTimeMillis();
+                         Log.i(TAG, "output EOS used " + (end - start_time));
                         //mAudioDecoder.release();
                         if (mLoop) {
                             doLoop = true;
@@ -524,7 +553,9 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                     if (doRender && frameCallback != null) {
                          //frameCallback.preRender(mBufferInfo.presentationTimeUs);
                     }
+                    //Log.i(TAG, " to release");
                     decoder.releaseOutputBuffer(decoderStatus, doRender);
+                    //Log.i(TAG, " to release end");
                     //decoder.releaseOutputBuffer(decoderStatus, false);
                     if (doRender && frameCallback != null) {
                         //frameCallback.postRender();
@@ -532,16 +563,20 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
 
                     long t1 = System.currentTimeMillis();
                     mOutputFrames++;
-                    Log.i(TAG, "post output frames " + mOutputFrames + " size " + mBufferInfo.size +  " pid " + Thread.currentThread().getId()
-                                + " used " + (t1 - decoder_used_time)
-                                + " pid " + Thread.currentThread().getId()
-                                + " pts " + presentTime
-                                + " new pts " + (presentTime - mStartTime)
-                                + " eof " + (mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
+//                    Log.i(TAG, "post output frames " + mOutputFrames + " size " + mBufferInfo.size +  " pid " + Thread.currentThread().getId()
+//                                + " used " + (t1 - decoder_used_time)
+//                                + " pid " + Thread.currentThread().getId()
+//                                + " pts " + presentTime
+//                                + " new pts " + (presentTime - mStartTime)
+//                                + " eof " + (mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM));
                     if (!outputDone) {
                         synchronized (mWaitEvent) {
                             try {
-                                mWaitEvent.wait(500);
+                                if (mNotwait == false) {
+                                    mWaitEvent.wait(500);
+                                    mNotwait = false;
+                                }
+
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -560,6 +595,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                 }
             }
         }
+
         mEndOfDecoder = true;
         Log.i(TAG, " end of decoder ");
     }

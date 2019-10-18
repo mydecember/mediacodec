@@ -203,7 +203,12 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
 
         mVideoEncoder = new VideoEncoder(width, height, mFps, mBitrate, mPath, mCodecName, this);
         mEgl = EglBase.create(context);
-        mEgl.createSurface(mVideoEncoder.getInputSurface());
+        if (mVideoEncoder.getInputSurface() == null) {
+            mEgl.createPbufferSurface(width, height);
+        } else {
+            mEgl.createSurface(mVideoEncoder.getInputSurface());
+        }
+
         mEgl.makeCurrent();
         onCreated();
     }

@@ -22,7 +22,7 @@ public class AudioDecoder {
     private volatile boolean running = false;
     private AudioFrameCallback mCallback;
 
-    private boolean mDump = false;
+    private boolean mDump = true;
     private String mDumpPath = "/sdcard/voip-data/dump.pcm";
     private FileOutputStream mOutputStream;
 

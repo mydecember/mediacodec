@@ -66,6 +66,7 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
             frame.info = info;
             frame.buffer = bytes;
             audioFramequeue.add(frame);
+
             return;
         }
         mMuxer.writeSampleData(mAudioTrackIndex, bytes, info);
@@ -252,7 +253,7 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
                 mMuxerStarted = true;
             }
         };
-        setupEncoder();
+       setupEncoder();
 
     }
 
@@ -265,14 +266,22 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
     private void setupEncoder() {
         if (!mAsync)
         mBufferInfo = new MediaCodec.BufferInfo();
+        if (mWidth == 0) {
+            try {
+                mMuxer = new MediaMuxer(mPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
         MediaFormat format = MediaFormat.createVideoFormat(VIDEO_MIME_TYPE, mWidth, mHeight);
         int frameRate = mFps;
         // Set some required properties. The media codec may fail if these aren't defined.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        //format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileHigh);
-        //format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
+//        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileHigh);
+//        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
         if (mBitrate <= 0) {
-            mBitrate = (int)(mWidth*mHeight*4*2);
+            mBitrate = (int)(mWidth*mHeight*4*3);
         }
         format.setInteger(MediaFormat.KEY_BIT_RATE, mBitrate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
@@ -314,17 +323,18 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
             Log.i(TAG, " add audio channels " + audioChannels);
             int audioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
             Log.i(TAG, " add audio sample rate " + audioSampleRate);
-            int bitrate = format.getInteger(MediaFormat.KEY_BIT_RATE);
-            Log.i(TAG, " add audio bitrate " + bitrate);
-            int aac_profile = format.getInteger(MediaFormat.KEY_AAC_PROFILE);
-            Log.i(TAG, " add audio profile " + aac_profile);
+          //  int bitrate = format.getInteger(MediaFormat.KEY_BIT_RATE);
+//            Log.i(TAG, " add audio bitrate " + bitrate);
+            //int aac_profile = format.getInteger(MediaFormat.KEY_AAC_PROFILE);
+            //Log.i(TAG, " add audio profile " + aac_profile);
 
-            ByteBuffer csd = format.getByteBuffer("csd-0");
-            Log.i(TAG, " ccccccc csd " + (csd.get(0) &0xff ) + " " + (csd.get(1) &0xff ));
+//            ByteBuffer csd = format.getByteBuffer("csd-0");
+//            Log.i(TAG, " ccccccc csd " + (csd.get(0) &0xff ) + " " + (csd.get(1) &0xff ));
 
 //"audio/mp4a-latm"
+            mime = "audio/mp4a-latm";
             MediaFormat encodeFormat = MediaFormat.createAudioFormat(mime, audioSampleRate, audioChannels);//参数对应-> mime type、采样率、声道数
-            encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);//比特率
+            encodeFormat.setInteger(MediaFormat.KEY_BIT_RATE, 8*1200);//bitrate);//比特率
             encodeFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
             encodeFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 4 * 1024);//作用于inputBuffer的大小
             mAudioEncoder = new AudioEncoder();

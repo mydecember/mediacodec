@@ -1,6 +1,7 @@
 package com.xiaomi.transfer;
 
 import android.opengl.GLES30;
+import android.util.Log;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -95,6 +96,15 @@ public abstract class BaseRenderDrawer {
         this.width = width;
         this.height = height;
         onChanged(width, height);
+        Log.i("zfq", "surface changed size w:" + width + " height:" + height );
+    }
+
+    public void bindFrame() {
+        mFbo.bind();
+    }
+
+    public void unBindFrame() {
+        mFbo.unBind();
     }
 
     public void draw(long timestamp, float[] transformMatrix){
