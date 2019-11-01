@@ -55,7 +55,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
     private static  final  int AUDIO_ONLY = 1;
     private  int VIDEO_ONLY = 2;
     private  int AUDIO_VIDEO = 3;
-    private int mSelectStream = 2;
+    private int mSelectStream = 3;
 
     private AudioDecoder mAudioDecoder;
 

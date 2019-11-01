@@ -1,4 +1,4 @@
-package org.webrtc;
+package com.xiaomi.demuxer;
 
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
@@ -28,16 +28,34 @@ public class AVDemuxer {
     private int mAudioTrackIndex = -1;
     private int mVideoTrackIndex = -1;
     boolean mFileEof = true;
-    private boolean mAsync =  false;
 
-
+    private boolean mIsAsync = true;
     private  String mFilePath;
+    private boolean mPrecisionSeek = false; // 0 pre 1 after 2 near 3  Precision
+    private long mSeekPos = 0;
+
+    private long mAudioDuration;
+    private long mVideoDuration;
+    private int mRotation;
+    private int mAudioChannels;
+    private int mAudioSampleRate;
+    private int mWidth;
+    private int mHeight;
 
 
     long output_audio_frame_count_ = 0;
     long output_video_frame_count_ = 0;
 
-    public int initialize(String filePath, int demuxer_media_type) {
+    public AVDemuxer(){}
+
+    public void stop() {
+        mVideoDecoder.release();
+        mAudioDecoder.release();
+    }
+
+    public int initialize(String filePath, int demuxer_media_type, boolean isAsync) {
+        Log.i(TAG, "to initialize ");
+        mIsAsync = isAsync;
         mDemuxerType = demuxer_media_type;
         mFilePath = filePath;
         mExtractor = new MediaExtractor();
@@ -53,19 +71,40 @@ public class AVDemuxer {
             MediaFormat format = mExtractor.getTrackFormat(i);
             String mineType = format.getString(MediaFormat.KEY_MIME);
             if (mineType.startsWith("video/") && mVideoTrackIndex == -1 && ((demuxer_media_type & DEMUXER_VIDEO) != 0)) {
-                if (mVideoDecoder.initialize(format) == 0) {
+                if (mVideoDecoder.initialize(format, mIsAsync) == 0) {
                     mExtractor.selectTrack(i);
                     mVideoTrackIndex = i;
                     mVideoStreamEnd = false;
+                    mWidth = format.getInteger(MediaFormat.KEY_WIDTH);
+                    mHeight = format.getInteger(MediaFormat.KEY_HEIGHT);;
+                    if (format.containsKey(MediaFormat.KEY_ROTATION)) {
+                        mRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+                    }
+                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                        mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
+                    }
+                    Log.i(TAG, "video rotation " + mRotation + " mVideoDuration " + mVideoDuration);
                 } else {
                     Log.i(TAG, " init video decoder error " + format.toString());
                 }
 
             } else if (mineType.startsWith("audio/") && mAudioTrackIndex == -1 && ((demuxer_media_type & DEMUXER_AUDIO) != 0)){
-                if (mAudioDecoder.initialize(format) == 0) {
+                if (mAudioDecoder.initialize(format, mIsAsync) == 0) {
                     mExtractor.selectTrack(i);
                     mAudioTrackIndex = i;
                     mAudioStreamEnd = false;
+
+                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                        mAudioDuration = format.getLong(MediaFormat.KEY_DURATION);
+                    }
+                    if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                        mAudioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                    }
+                    if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                        mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                    }
+                    Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
+
                 } else {
                     Log.i(TAG, " init audio decoder error " + format.toString());
                 }
@@ -84,61 +123,39 @@ public class AVDemuxer {
         return 0;
     }
 
-    public static void Test() {
-        long tm = System.nanoTime();
-        AVDemuxer demuxer = new AVDemuxer();
-        demuxer.initialize("/sdcard/voip-data/dou.mp4", 2);
-        while(true) {
-            HWAVFrame frame = demuxer.readFrame();
-            if ( frame == null) {
-                Log.i(TAG, "EEEEEEEEEEEEEEEee");
-                break;
-            }
-            if (frame != null) {
-                if (frame.mGotFrame == true) {
-                    //Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp + " got " + frame.mGotFrame);
-                    demuxer.releaseFrame(frame);
-                }
-            }
-        }
-        long tm1 = System.nanoTime();
-        Log.i(TAG, "Test end used " + (tm1 - tm) /1000/1000 );
+    public int getRotation() {
+        return mRotation;
     }
 
-    public static void TestReadfile() {
-        long tm = System.nanoTime();
-        AVDemuxer demuxer = new AVDemuxer();
-        demuxer.initialize("/sdcard/voip-data/dou.mp4", 2);
-        while(true) {
-            if (demuxer.TestRead() == -1)
-                break;
-        }
-        long tm1 = System.nanoTime();
-        Log.i(TAG, "Test end used " + (tm1 - tm) /1000/1000 );
-    }
-    public static void TestAsync() {
-        AVDemuxer demuxer = new AVDemuxer();
-        demuxer.initialize("/sdcard/voip-data/dou.mp4", 2);
-        demuxer.syncStart();
+    public long getAudioDuration() {
+        return mAudioDuration;
     }
 
-    private ByteBuffer bio = ByteBuffer.allocateDirect(3620*2048*3);
-    public int TestRead() {
-        int track_id = mExtractor.getSampleTrackIndex();
-        int cnt = mExtractor.readSampleData(bio, 0);
-        if (cnt >=0)
-        mExtractor.advance();
-        bio.clear();
-        if (cnt <= 0) {
-            return -1;
-        }
-        return 0;
+    public long getVideoDuration() {
+        return mVideoDuration;
+    }
+
+    public int getChannels() {
+        return mAudioChannels;
+    }
+
+    public int getSampleRate() {
+        return mAudioSampleRate;
+    }
+
+    public int getWidth() {
+        return mWidth;
+    }
+
+    public int getHeight() {
+        return mHeight;
     }
 
     boolean mExit = false;
-    public void syncStart() {
-        long tm = System.nanoTime();
-        HWDecoderCallback callback = new HWDecoderCallback() {
+    public void asyncStart() {
+        mExit = false;
+        final long tm = System.nanoTime();
+        HWDecoder.HWDecoderCallback callback = new HWDecoder.HWDecoderCallback() {
             @Override
             public void onHWDecoderFrame(HWAVFrame frame) {
                 if (frame.mGotFrame) {
@@ -162,6 +179,8 @@ public class AVDemuxer {
                     Log.i(TAG, " streams end kkkkkkkkkk" );
                     Log.i(TAG, "get decoder frame count audio:" + output_audio_frame_count_  + " video:" + output_video_frame_count_);
                     mExit = true;
+                    long tm1 = System.nanoTime();
+                    Log.i(TAG, "Test end used " + (tm1 - tm) /1000/1000 );
                 }
             }
         };
@@ -175,7 +194,7 @@ public class AVDemuxer {
             } else if (mVideoTrackIndex >= 0 && track_id == mVideoTrackIndex) {
                 SendSamplesToDecoder(mVideoDecoder);
             } else {
-                Log.i(TAG, "read file  end" +  mExtractor.getSampleTime());
+
                 if (mAudioTrackIndex >= 0) {
                     setDecoderEnd(mAudioDecoder);
                 }
@@ -183,13 +202,18 @@ public class AVDemuxer {
                     setDecoderEnd(mVideoDecoder);
                 }
                 mFileEof = true;
+                Log.i(TAG, "read file  end and set mFileEof " +  mFileEof);
             }
         }
         while(!mExit) {
-
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         long tm1 = System.nanoTime();
-        Log.i(TAG, "Test end used " + (tm1 - tm) /1000/1000 );
+        Log.i(TAG, "Test end used ## " + (tm1 - tm) /1000/1000 );
     }
 
     public void releaseFrame(HWAVFrame  frame) {
@@ -197,6 +221,24 @@ public class AVDemuxer {
             mAudioDecoder.releaseFream(frame.mIdx);
         } else {
             mVideoDecoder.releaseFream(frame.mIdx);
+        }
+    }
+
+    public void seekPos(long pos, int mode) {
+        mSeekPos = pos;
+        Log.i(TAG, "seek to "+ pos + " mode " + mode);
+        if (!mAudioStreamEnd) {
+            mAudioDecoder.reset();
+        }
+        if (!mVideoStreamEnd) {
+            mVideoDecoder.reset();
+        }
+
+        if (mode == 3) { //precision seek
+            //mPrecisionSeek = true;
+            mExtractor.seekTo(mSeekPos, MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+        } else {
+            mExtractor.seekTo(pos, mode);
         }
     }
 
@@ -243,16 +285,15 @@ public class AVDemuxer {
                 return readFrame();
             }
         }
-//        if(frame == null) {
-//            Log.i(TAG, " fream is none");
-//        }
     }
 
-
-    boolean SendSamplesToDecoder(HWDecoder decoder) {
+    private boolean SendSamplesToDecoder(HWDecoder decoder) {
         int index;
+        long t1 = System.currentTimeMillis();
         index = decoder.getNextDecoderBufferIndex();
+        long t2 = System.currentTimeMillis();
         ByteBuffer ibuf = decoder.getNextDecoderBuffer(index);
+        long t3 = System.currentTimeMillis();
         if (ibuf == null) {
             Log.i(TAG, "get decoder buffer error");
             return false;
@@ -263,14 +304,15 @@ public class AVDemuxer {
         if (decoder.getIsAudio()) {
             //Log.i(TAG, " read sample size " + cnt + " tm " + tm + " audio " );
         } else {
-            //Log.i(TAG, " read sample size " + cnt + " tm " + tm + " video " );
+            //Log.i(TAG, " read sample size " + cnt + " tm " + tm + " video " + " used " + (t2 - t1)  + " " + (t3-t1) + " index " + index);
         }
-        decoder.queueInputBuffer(index, cnt, tm, false);
         mExtractor.advance();
+        decoder.queueInputBuffer(index, cnt, tm, false);
+
         return true;
     }
 
-    boolean setDecoderEnd(HWDecoder decoder) {
+    private boolean setDecoderEnd(HWDecoder decoder) {
         int index;
         index = decoder.getNextDecoderBufferIndex();
         ByteBuffer ibuf = decoder.getNextDecoderBuffer(index);

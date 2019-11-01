@@ -1,4 +1,4 @@
-package org.webrtc;
+package com.xiaomi.demuxer;
 
 import java.nio.ByteBuffer;
 
@@ -20,9 +20,17 @@ public class HWAVFrame {
 
     public long mTimeStamp;
     public ByteBuffer mBuffer;
+    public int mBufferSize;
 
     public boolean mGotFrame;
     public int mIdx;
 
     public boolean mStreamEOF;
+    public HWAVFrame(){}
+    public HWAVFrame(boolean isAudio, long time, ByteBuffer buffer, int bufferSize) {
+        mIsAudio = isAudio;
+        mTimeStamp = time;
+        mBuffer = buffer;
+        mBufferSize = bufferSize;
+    }
 }

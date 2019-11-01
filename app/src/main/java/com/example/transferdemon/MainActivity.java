@@ -15,9 +15,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
+import com.xiaomi.demuxer.TestDemuxerSync;
 import com.xiaomi.transfer.MiVideoTranscode;
 
-import org.webrtc.AVDemuxer;
+import com.xiaomi.demuxer.AVDemuxer;
 
 public class MainActivity extends AppCompatActivity {
     private static final int CMD_START = 0x01;
@@ -82,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private void initThread()
     {
         mHandlerThread = new HandlerThread("check-message-coming");
+        mHandlerThread.setPriority(Thread.MAX_PRIORITY);
         mHandlerThread.start();
 
         mThreadHandler = new Handler(mHandlerThread.getLooper())
@@ -104,12 +106,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    private Thread createOutputThread() {
+        return new Thread("Mediacodec_outputThread") {
+            public void run() {
+
+                //AVDemuxer.TestAsync();
+                TestDemuxerSync.Test();
+                //AVDemuxer.TestReadfile();
+
+            }
+        };
+    }
+
     private void start() {
-        boolean sel = false;
+        boolean sel = true;
+        //createOutputThread().start();
         if (sel ) {
-            AVDemuxer.TestAsync();
-            //AVDemuxer.Test();
-            //AVDemuxer.TestReadfile();
+            //createOutputThread().start();
+            //TestDemuxerSync.TestAsync();
+
+            //TestDemuxerSync.Test();
+            TestDemuxerSync.TestDemuxerMuxer();
         } else {
             mTranscode = new MiVideoTranscode();
             String source1 = "/sdcard/voip-data/VID_20190619_201101.mp4";

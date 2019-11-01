@@ -491,7 +491,8 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
                 return ; // MediaCodec.setParameters is missing.
 
             for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
-                MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
+                Log.i(TAG," ============= codec count " + (i+1));
+                        MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
                 if (!info.isEncoder()) {
                     continue;
                 }
