@@ -85,6 +85,48 @@ public class HWEncoder {
         createOutputThread().start();
     }
 
+    private HWAVFrame dropStride(HWAVFrame frame) {
+        if (frame.mIsAudio) {
+            return frame;
+        }
+        int len = frame.mWidth * frame.mHeight * 3 / 2;
+        if (frame.mBufferSize == len) {
+            return frame;
+        }
+        if (frame.mColorFomat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar) {
+            //Log.i(TAG, "######### change format COLOR_FormatYUV420SemiPlanar");
+            byte[] src = new byte[frame.mBuffer.remaining()];
+            frame.mBuffer.get(src, 0, src.length);
+
+            byte[] nv12 = new byte[len];
+            for (int i = 0; i < frame.mHeight; ++i) {
+                System.arraycopy(src , frame.mStride*i, nv12, i*frame.mWidth,  frame.mWidth);
+            }
+            int srcLumaSize = frame.mStride * frame.mStrideHeight;
+            int dstLumaSize = frame.mWidth * frame.mHeight;
+
+            for (int i = 0; i < frame.mHeight / 2; ++ i) {
+                System.arraycopy(src , srcLumaSize + frame.mStride * i, nv12, dstLumaSize + frame.mWidth * i,  frame.mWidth );
+            }
+
+            frame.mBuffer = ByteBuffer.wrap(nv12);
+            frame.mBufferSize = len;
+            return frame;
+
+        } else if (frame.mColorFomat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar) {
+            //Log.i(TAG, "######### change format COLOR_FormatYUV420Planar");
+            byte[] i420 = new byte[len];
+//            for () {
+//
+//            }
+            frame.mBuffer = ByteBuffer.wrap(i420);
+            frame.mBufferSize = len;
+            return frame;
+        } else {
+            return null;
+        }
+
+    }
     public void encodeFrame(HWAVFrame frame) {
         int index = mEncoder.dequeueInputBuffer(-1);
         if (index < 0) {
@@ -97,6 +139,7 @@ public class HWEncoder {
         } else {
             buffer.clear();
             //frame.mBuffer.flip();
+            dropStride(frame);
             buffer.put(frame.mBuffer);
             buffer.flip();
             mEncoder.queueInputBuffer(index, 0, frame.mBufferSize, frame.mTimeStamp, 0);

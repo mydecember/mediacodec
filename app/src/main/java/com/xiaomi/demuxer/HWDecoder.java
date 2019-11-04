@@ -253,7 +253,10 @@ public class HWDecoder {
                 }
                 int keyStride = newFormat.getInteger(MediaFormat.KEY_STRIDE);
                 int keyStrideHeight = newFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT);
+                mFrame.mWidth = mFrame.mCropRight - mFrame.mCropLeft + 1;
+                mFrame.mHeight = mFrame.mCropButtom - mFrame.mCropTop + 1;
                 mFrame.mStride = keyStride;
+                mFrame.mStrideHeight = keyStrideHeight;
                 Log.d(TAG, " stride:" + keyStride +  " height stride:" + keyStrideHeight );
             } else {
                 if (newFormat.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {

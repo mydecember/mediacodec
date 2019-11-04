@@ -73,7 +73,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         }
         Log.e(TAG, " setup audio track ok");
         mAudioStreamEnd = false;
-        mAudioEncoder.start();
+        //mAudioEncoder.start();
         return true;
     }
 
@@ -115,7 +115,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         }
         Log.e(TAG, " setup video track ok");
         mVideoStreamEnd = false;
-        mVideoEncoder.start();
+        //mVideoEncoder.start();
         return true;
     }
 
@@ -134,6 +134,14 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         return true;
     }
 
+    public void start() {
+        if (!mVideoStreamEnd) {
+            mVideoEncoder.start();
+        }
+        if (!mAudioStreamEnd) {
+            mAudioEncoder.start();
+        }
+    }
     private Object mLock = new Object();
     public void stop() {
         if (!mVideoStreamEnd) {
@@ -193,10 +201,10 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
             return;
         }
         if (isAudio) {
-            Log.i(TAG," onEncodedFrame write audio sample " + info.size + " mIsMuxerStarted " + mIsMuxerStarted);
+            //Log.i(TAG," onEncodedFrame write audio sample " + info.size + " mIsMuxerStarted " + mIsMuxerStarted);
             mMuxer.writeSampleData(mAudioTrackID, buffer, info);
         } else {
-            Log.i(TAG," onEncodedFrame write video sample " + info.size + " mIsMuxerStarted " + mIsMuxerStarted) ;
+            //Log.i(TAG," onEncodedFrame write video sample " + info.size + " mIsMuxerStarted " + mIsMuxerStarted) ;
             mMuxer.writeSampleData(mVideoTrackID, buffer, info);
         }
     }
@@ -205,11 +213,11 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
     public synchronized void onNewFormat(MediaFormat format, boolean isAudio) {
         int selectId;
         if (isAudio) {
-            Log.i(TAG," =====add audio track " + format.toString() );
+            Log.i(TAG," =====muxer add audio track " + format.toString() );
             mAudioTrackID = mMuxer.addTrack(format);
             selectId = mVideoTrackID;
         } else {
-            Log.i(TAG," =====add video track " + format.toString() );
+            Log.i(TAG," =====muxer add video track " + format.toString() );
             mVideoTrackID = mMuxer.addTrack(format);
             selectId = mAudioTrackID;
         }
@@ -224,7 +232,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         if (audioOK && videoOk) {
             mMuxer.start();
             mIsMuxerStarted = true;
-            Log.i(TAG," SSSSSSSSSSSSSSSSSss mIsMuxerStarted " + mIsMuxerStarted);
+            Log.i(TAG,"muxer started");
             while(!mAudioStreamEnd && !mVideoStreamEnd && mFramequeue.size() > 0) {
 
                 CacheFrame frame = mFramequeue.peek();

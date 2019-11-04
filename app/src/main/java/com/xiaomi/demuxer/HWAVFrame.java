@@ -10,6 +10,7 @@ public class HWAVFrame {
     public int mHeight;
     public int mColorFomat;
     public int mStride;
+    public int mStrideHeight;
     public int mCropTop;
     public int mCropButtom;
     public int mCropLeft;

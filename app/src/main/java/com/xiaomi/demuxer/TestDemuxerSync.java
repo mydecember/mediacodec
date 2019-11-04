@@ -46,6 +46,7 @@ public class TestDemuxerSync {
         muxer.initialize("/sdcard/voip-data/muxer.mp4");
         muxer.addVideoTrack("avc", false, demuxer.getWidth(),demuxer.getHeight(),0,0);
         muxer.addAudioTrack("acc", 44100, 2, 190000);
+        muxer.start();
         while(true) {
             HWAVFrame frame = demuxer.readFrame();
             if ( frame == null) {
