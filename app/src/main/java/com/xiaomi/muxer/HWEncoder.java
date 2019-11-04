@@ -32,10 +32,10 @@ public class HWEncoder {
     }
 
     private static final int[] supportedColorList = {
-            MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible,
-            MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar,
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar,
+            MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar,
             //MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
+            //MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible,
     };
 
     public static class EncoderProperties {
@@ -115,10 +115,24 @@ public class HWEncoder {
 
         } else if (frame.mColorFomat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar) {
             //Log.i(TAG, "######### change format COLOR_FormatYUV420Planar");
+            byte[] src = new byte[frame.mBuffer.remaining()];
+            frame.mBuffer.get(src, 0, src.length);
+
             byte[] i420 = new byte[len];
-//            for () {
-//
-//            }
+            for (int i = 0; i < frame.mHeight; ++i) {
+                System.arraycopy(src , frame.mStride*i, i420, i*frame.mWidth,  frame.mWidth);
+            }
+            int srcLumaSize = frame.mStride * frame.mStrideHeight;
+            int dstLumaSize = frame.mWidth * frame.mHeight;
+
+            for (int i = 0; i < frame.mHeight / 2; ++ i) {
+                System.arraycopy(src , srcLumaSize + frame.mStride /2 * i, i420, dstLumaSize + frame.mWidth /2 * i,  frame.mWidth / 2 );
+            }
+
+            for (int i = 0; i < frame.mHeight / 2; ++ i) {
+                System.arraycopy(src , srcLumaSize + srcLumaSize /4 + frame.mStride /2 * i, i420, dstLumaSize + dstLumaSize/4 + frame.mWidth /2 * i,  frame.mWidth / 2 );
+            }
+
             frame.mBuffer = ByteBuffer.wrap(i420);
             frame.mBufferSize = len;
             return frame;
