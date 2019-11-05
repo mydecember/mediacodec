@@ -1,4 +1,4 @@
-package com.xiaomi.transfer;
+package com.xiaomi.drawers;
 
 import android.opengl.GLES11Ext;
 import android.opengl.GLES30;
@@ -7,7 +7,7 @@ import android.util.Log;
 
 import com.xiaomi.glbase.GlUtil;
 
-public class OriginalRenderDrawer extends BaseRenderDrawer {
+public class OriginalDrawer extends BaseDrawer {
     private int av_Position;
     private int af_Position;
     private int s_Texture;
@@ -51,9 +51,9 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mVertexBufferId);
         GLES30.glVertexAttribPointer(av_Position, CoordsPerVertexCount, GLES30.GL_FLOAT, false, 0, 0);
         //if (CameraUtil.isBackCamera()) {
-            //GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mBackTextureBufferId);
+        //GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mBackTextureBufferId);
         //} else {
-           //GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mFrontTextureBufferId);
+        //GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mFrontTextureBufferId);
         //}
         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mFrameTextureBufferId);
 
@@ -64,6 +64,7 @@ public class OriginalRenderDrawer extends BaseRenderDrawer {
         unBindTexure();
         GLES30.glDisableVertexAttribArray(av_Position);
         GLES30.glDisableVertexAttribArray(af_Position);
+        GLES30.glFlush();
     }
 
     private void bindTexture(int textureId) {

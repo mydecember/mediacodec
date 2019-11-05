@@ -1,4 +1,4 @@
-package com.xiaomi.transfer;
+package com.xiaomi.glbase;
 
 import android.graphics.Bitmap;
 import android.opengl.GLES30;
@@ -10,8 +10,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class GlUtil {
-    public static int mWidht = 3840;
-    public static int mHeight = 2160;
+    public static int mWidht = 1280;
+    public static int mHeight = 720;
     public static int mPictureRotation = 0;
 
     public static int createProgram(String vertexSource, String fragmentSource) {

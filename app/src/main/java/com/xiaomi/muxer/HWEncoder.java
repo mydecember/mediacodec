@@ -6,25 +6,34 @@ import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.os.Build;
+import android.provider.MediaStore;
 import android.util.Log;
+import android.util.Range;
 import android.view.Surface;
 
 import com.xiaomi.demuxer.HWAVFrame;
+import com.xiaomi.drawers.VideoEncoderDrawer;
+import com.xiaomi.glbase.EglBase;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class HWEncoder {
     private static String TAG = "hwencoder";
-    private Surface mInputSurface;
     private MediaMuxer mMuxer;
     private MediaCodec mEncoder;
     private long mEncoderFrames = 0;
-    private boolean mUseSurface = false;
     private boolean mIsAudio = true;
     private EncoderCallBack mCallBack;
     private boolean mRunning = false;
     private final Object mLock = new Object();
+    private boolean mUseSurface = false;
+    private VideoEncoderDrawer mVideoEncoderDrawer = new VideoEncoderDrawer();
+    private Surface mInputSurface;
+    private EglBase mEgl;
+    private EglBase.Context mSharedContext;
+    private MediaFormat mFormat;
+
     public interface EncoderCallBack {
         public void onEncoderEOF(boolean isAudio);
         public void onEncodedFrame(ByteBuffer buffer, MediaCodec.BufferInfo info, boolean isAudio);
@@ -39,17 +48,20 @@ public class HWEncoder {
     };
 
     public static class EncoderProperties {
-        EncoderProperties(String codecName, int colorFormat) {
+        EncoderProperties(String codecName, int colorFormat, Range<Integer> bits) {
             this.codecName = codecName;
             this.color = colorFormat;
+            bitRange = bits;
         }
+        Range<Integer> bitRange;
         public int color;
         public String codecName; // OpenMax component name for HEVC codec.
     }
 
     public int setupEncoder(String codecName, MediaFormat format, EncoderCallBack callback, boolean useSurface) {
-        Log.i(TAG," setup encoder format " + format);
+        Log.i(TAG," setup encoder format " + format + " useSurface " + useSurface);
         mUseSurface = useSurface;
+        mFormat = format;
         try {
             String mime = format.getString(MediaFormat.KEY_MIME);
             if (mime.startsWith("audio/")) {
@@ -67,7 +79,10 @@ public class HWEncoder {
             }
             mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             if (mUseSurface) {
+                mSharedContext = EglBase.getCurrentContext();
+                mEgl = EglBase.create(mSharedContext);
                 mInputSurface = mEncoder.createInputSurface();
+                mEgl.createSurface(mInputSurface);
             }
             //mEncoder.setCallback(mEncoderCallback);
             mEncoder.start();
@@ -82,6 +97,12 @@ public class HWEncoder {
     }
 
     public void start() {
+        if (mUseSurface) {
+            mEgl.makeCurrent();
+            mVideoEncoderDrawer.create();
+            mVideoEncoderDrawer.surfaceChangedSize(mFormat.getInteger(MediaFormat.KEY_WIDTH), mFormat.getInteger(MediaFormat.KEY_HEIGHT));
+            mEgl.detachCurrent();
+        }
         createOutputThread().start();
     }
 
@@ -142,6 +163,10 @@ public class HWEncoder {
 
     }
     public void encodeFrame(HWAVFrame frame) {
+        if (mUseSurface) {
+            encodeTextureBuffer(frame);
+            return;
+        }
         int index = mEncoder.dequeueInputBuffer(-1);
         if (index < 0) {
             Log.e(TAG, "get encoder queue error");
@@ -158,23 +183,32 @@ public class HWEncoder {
             buffer.flip();
             mEncoder.queueInputBuffer(index, 0, frame.mBufferSize, frame.mTimeStamp, 0);
         }
+    }
 
+    private void encodeTextureBuffer(HWAVFrame frame) {
+        //Log.i(TAG, "to draw frame id " + frame.mTextureId + " tm " + frame.mTimeStamp);
+        mEgl.makeCurrent();
+        mVideoEncoderDrawer.setInputTextureId(frame.mTextureId);
+        mVideoEncoderDrawer.drawFrame(frame.mTimeStamp * 1000);
+        mEgl.setPresentTime(frame.mTimeStamp*1000);
+        mEgl.swapBuffers();
+        mEgl.detachCurrent();
     }
 
     public void stopEncoder() {
         if (mUseSurface) {
             mEncoder.signalEndOfInputStream();
-            return;
+        } else {
+            HWAVFrame frame = new HWAVFrame();
+            frame.mStreamEOF = true;
+            frame.mBufferSize = 0;
+            encodeFrame(frame);
         }
-        HWAVFrame frame = new HWAVFrame();
-        frame.mStreamEOF = true;
-        frame.mBufferSize = 0;
-        encodeFrame(frame);
         synchronized (mLock) {
             try {
                 mLock.wait();
             } catch (InterruptedException e) {
-
+                e.printStackTrace();
             }
         }
     }
@@ -216,12 +250,11 @@ public class HWEncoder {
             //Log.i(TAG, "== AMEDIACODEC_INFO_TRY_AGAIN_LATER is audio " + mIsAudio);
         } else if (oIdx == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             MediaFormat newFormat = mEncoder.getOutputFormat();
-            Log.d(TAG, "encoder output format changed: " + newFormat);
+            Log.d(TAG, "INFO_OUTPUT_FORMAT_CHANGED encoder output format changed: " + newFormat);
             mCallBack.onNewFormat(newFormat, mIsAudio);
         } else if (oIdx < 0) {
         } else {
             if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM )!= 0) {
-                Log.i(TAG, "read eof");
                 mCallBack.onEncoderEOF(mIsAudio);
                 mRunning = false;
             } else {
@@ -319,6 +352,7 @@ public class HWEncoder {
                     for (int colorFormat : capabilities.colorFormats) {
                         Log.i(TAG, "   Color: 0x" + Integer.toHexString(colorFormat));
                     }
+                    Log.i(TAG, "bit range " + cap.getBitrateRange().toString());
 
                     // Check if codec supports either yuv420 or nv12
                     for (int supportedColorFormat : supportedColorList) {
@@ -327,12 +361,12 @@ public class HWEncoder {
                                 // Found supported HW VP8 encoder
                                 Log.i(TAG, "Found target encoder " + name +
                                         ". Color: 0x" + Integer.toHexString(codecColorFormat));
-                                return new EncoderProperties(name, codecColorFormat);
+                                return new EncoderProperties(name, codecColorFormat, cap.getBitrateRange());
                             }
                         }
                     }
                 } else { // audio
-                    return new EncoderProperties(name, -1);
+                    return new EncoderProperties(name, -1, null);
                 }
             }
             return null;

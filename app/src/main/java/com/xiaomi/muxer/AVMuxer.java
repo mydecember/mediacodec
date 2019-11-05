@@ -27,6 +27,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
     private HWEncoder.EncoderProperties mVideoProperties;
     private volatile boolean mIsMuxerStarted = false;
     private Queue<CacheFrame> mFramequeue = new LinkedList<CacheFrame>();
+    private int mVideoRotation;
 
     public static final int COLOR_FORMAT_YUV420P = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar;
     public static final int COLOR_FORMAT_YUV420SP = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar;
@@ -39,7 +40,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
 
     public AVMuxer(){}
 
-    public int initialize(String filePath) {
+    public int open(String filePath) {
         mPath = filePath;
         mIsMuxerStarted = false;
         mAudioStreamEnd = true;
@@ -77,8 +78,16 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         return true;
     }
 
-    public boolean addVideoTrack(String codecName, boolean useSurface, int width, int height, int fps, int bitrate) {
+    public boolean addVideoTrack(String codecName, boolean useSurface, int rotation, int width, int height, int fps, int bitrate) {
+        Log.i(TAG, "addVideoTrack codecName " + codecName
+                        + " usesurface " + useSurface
+                        + " rotation " + rotation
+                        + " width " + width
+                        + " height " + height
+                        + " fps " + fps
+                        + " bitrate " + bitrate);
         MediaFormat format = null;
+        mVideoRotation = rotation;
         if (codecName.equals("avc")) {
             format = MediaFormat.createVideoFormat("video/avc", width, height);
         } else if (codecName.equals("hevc")) {
@@ -92,14 +101,14 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
             return false;
         }
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, mVideoProperties.color);
-        // Set some required properties. The media codec may fail if these aren't defined.
         if (useSurface) {
             format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         }
         if (bitrate <= 0) {
-            bitrate = (int)(width*height*4*3);
+            bitrate = (int)(width*height*2*3);
         }
-        if (fps == 0) {
+        bitrate = Math.min(mVideoProperties.bitRange.getUpper(), Math.max(mVideoProperties.bitRange.getLower(), bitrate));
+        if (fps <= 0) {
             fps = 30;
         }
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
@@ -145,9 +154,11 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
     private Object mLock = new Object();
     public void stop() {
         if (!mVideoStreamEnd) {
+            Log.i(TAG, "to stop VideoEncoder");
             mVideoEncoder.stopEncoder();
         }
         if (!mAudioStreamEnd) {
+            Log.i(TAG, "to stop AudioEncoder");
             mAudioEncoder.stopEncoder();
         }
         if (mMuxer != null) {
@@ -172,6 +183,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
             }
             mMuxer = null;
         }
+        Log.i(TAG, "stop muxter ok");
     }
 
     @Override
@@ -220,6 +232,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
             Log.i(TAG," =====muxer add video track " + format.toString() );
             mVideoTrackID = mMuxer.addTrack(format);
             selectId = mAudioTrackID;
+            mMuxer.setOrientationHint(mVideoRotation);
         }
         boolean audioOK = true;
         boolean videoOk = true;
@@ -236,7 +249,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
             while(!mAudioStreamEnd && !mVideoStreamEnd && mFramequeue.size() > 0) {
 
                 CacheFrame frame = mFramequeue.peek();
-                Log.i(TAG," write cache sample " + frame.info.size);
+                //Log.i(TAG," write cache sample " + frame.info.size);
                 mMuxer.writeSampleData(selectId, frame.buffer, frame.info);
                 mFramequeue.remove();
             }

@@ -1,4 +1,4 @@
-package com.xiaomi.transfer;
+package com.xiaomi.drawers;
 
 import android.opengl.GLES30;
 

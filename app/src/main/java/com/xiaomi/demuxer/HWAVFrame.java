@@ -15,6 +15,7 @@ public class HWAVFrame {
     public int mCropButtom;
     public int mCropLeft;
     public int mCropRight;
+    public int mTextureId;
 
     public int mAudioChannels;
     public int mAudioSampleRate;
@@ -28,10 +29,14 @@ public class HWAVFrame {
 
     public boolean mStreamEOF;
     public HWAVFrame(){}
-    public HWAVFrame(boolean isAudio, long time, ByteBuffer buffer, int bufferSize) {
+    public HWAVFrame(boolean isAudio, long time, ByteBuffer buffer, int bufferSize, int width, int height, int texturId, int color) {
         mIsAudio = isAudio;
         mTimeStamp = time;
         mBuffer = buffer;
+        mTextureId = texturId;
+        mColorFomat = color;
         mBufferSize = bufferSize;
+        mWidth = width;
+        mHeight = height;
     }
 }

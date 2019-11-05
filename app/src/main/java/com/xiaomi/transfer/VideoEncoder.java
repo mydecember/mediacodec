@@ -277,11 +277,11 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
         MediaFormat format = MediaFormat.createVideoFormat(VIDEO_MIME_TYPE, mWidth, mHeight);
         int frameRate = mFps;
         // Set some required properties. The media codec may fail if these aren't defined.
-        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, 0x7F000789);//MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
 //        format.setInteger(MediaFormat.KEY_PROFILE, AVCProfileHigh);
 //        format.setInteger(MediaFormat.KEY_LEVEL, AVCLevel52);
         if (mBitrate <= 0) {
-            mBitrate = (int)(mWidth*mHeight*4*3);
+            mBitrate = (int)(mWidth*mHeight*2*3);
         }
         format.setInteger(MediaFormat.KEY_BIT_RATE, mBitrate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);

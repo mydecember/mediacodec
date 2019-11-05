@@ -1,4 +1,4 @@
-package com.xiaomi.transfer;
+package com.xiaomi.glbase;
 
 import android.content.Context;
 import android.graphics.Bitmap;

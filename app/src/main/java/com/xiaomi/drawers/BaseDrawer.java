@@ -1,16 +1,17 @@
-package com.xiaomi.transfer;
+package com.xiaomi.drawers;
 
 import android.opengl.GLES30;
 import android.util.Log;
 
 import com.xiaomi.glbase.GlUtil;
 import com.xiaomi.glbase.GlesUtil;
+import com.xiaomi.drawers.GLFrameBuffer;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
-public abstract class BaseRenderDrawer {
+public abstract class BaseDrawer {
     protected int width;
 
     protected int height;
@@ -82,7 +83,7 @@ public abstract class BaseRenderDrawer {
 
     protected final int TextureStride = CoordsPerTextureCount * 4;
 
-    public BaseRenderDrawer() {
+    public BaseDrawer() {
 
     }
 
@@ -212,7 +213,6 @@ public abstract class BaseRenderDrawer {
 
     public void release() {
         if (mFbo != null)
-        mFbo.release();
+            mFbo.release();
     }
-
 }

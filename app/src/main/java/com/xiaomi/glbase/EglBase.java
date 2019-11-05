@@ -1,4 +1,4 @@
-package com.xiaomi.transfer;
+package com.xiaomi.glbase;
 
 import android.graphics.SurfaceTexture;
 import android.view.Surface;
@@ -21,7 +21,7 @@ public abstract class EglBase {
             EGL10.EGL_NONE
     };
 
-    static class Context {}
+    static public class Context {}
 
     public static EglBase create(Context shareContext, int[] configAttributes) {
         return (EglBase14.isEGL14Supported())

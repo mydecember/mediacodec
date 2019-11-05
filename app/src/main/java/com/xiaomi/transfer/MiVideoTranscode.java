@@ -12,9 +12,10 @@ import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 
+import com.xiaomi.glbase.EglBase;
+import com.xiaomi.glbase.GlUtil;
+import com.xiaomi.glbase.GlesUtil;
 import com.xiaomi.transfer.smooth.BeautySmoothDrawer;
-import com.xiaomi.transfer.smooth.GaussianBlur;
-import com.xiaomi.transfer.smooth.RgbToYuv;
 
 import java.io.File;
 import java.io.IOException;

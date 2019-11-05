@@ -4,15 +4,18 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.media.MediaFormat;
-import android.os.Build;
 import android.util.Log;
+import android.view.Surface;
+
+import com.xiaomi.glbase.EglBase;
+import com.xiaomi.glbase.SurfaceTextureHelper;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class HWDecoder {
+public class HWDecoder implements SurfaceTextureHelper.VideoSink{
     private static final String TAG = "HWDecoder";
 
     private boolean mDump = false;
@@ -30,6 +33,15 @@ public class HWDecoder {
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private HWDecoderCallback mCallback;
     private boolean mIsAsync = false;
+    private Surface mOutputSurface;
+    private EglBase.Context mSharedContext;
+    private EglBase mEgl;
+    private SurfaceTextureHelper mSurfaceHelper;
+    private final Object renderLock = new Object();
+    private final Object mWaitEvent = new Object();
+    private volatile boolean mNoWait = false;
+    private HWAVFrame mTextureFrame = new HWAVFrame();
+
     public void setCallBack(HWDecoderCallback call) {
         mCallback = call;
     }
@@ -62,6 +74,13 @@ public class HWDecoder {
     }
 
     public void release() {
+        if (mOutputSurface != null) {
+            mOutputSurface.release();
+            mOutputSurface = null;
+            mSurfaceHelper.stopListening();
+            mSurfaceHelper.dispose();
+            mSurfaceHelper = null;
+        }
         if (mDump) {
             try {
                 mOutputStream.close();
@@ -71,10 +90,11 @@ public class HWDecoder {
         }
     }
 
-    public int initialize(MediaFormat format, boolean isAsync) {
+    public int initialize(MediaFormat format, boolean isAsync, boolean useSurface) {
         mIsAsync = isAsync;
         String mine = format.getString(MediaFormat.KEY_MIME);
         Log.i(TAG, "hwdecoder to init format " + format.toString() + " use async " + mIsAsync);
+        //format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar);
         //findHwEncoder(mine, false);
         if (mine.startsWith("audio/")) {
             mIsAudio = true;
@@ -88,33 +108,12 @@ public class HWDecoder {
             mFrame.mCropLeft = 0;
             mFrame.mCropRight = mFrame.mWidth - 1;
             mIsAudio = false;
-        }
 
-        if (false) {
-            DecoderProperties properties = findHwEncoder(mine, false);
-            if (properties == null) {
-                return -1;
-            }
-            MediaFormat format1 = MediaFormat.createVideoFormat(mine, mFrame.mWidth, mFrame.mHeight);
-
-            ByteBuffer csd0 = format.getByteBuffer("csd-0");
-            ByteBuffer csd1 = format.getByteBuffer("csd-1");
-
-            format1.setByteBuffer("csd-0", csd0);
-            format1.setByteBuffer("csd-1", csd1);
-
-            format1.setFloat(MediaFormat.KEY_FRAME_RATE, (float)30);
-
-            Log.i(TAG, "hwdecoder to init format 11 " + format1.toString());
-
-            try {
-                mDecoder = MediaCodec.createByCodecName(properties.codecName);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            if (mDecoder == null) {
-                Log.i("hevc decoder", "decoder init error null");
-                return -1;
+            if (useSurface) {
+                mSharedContext = EglBase.getCurrentContext();
+                mSurfaceHelper = SurfaceTextureHelper.create("surface-decoder", mSharedContext, mFrame.mWidth, mFrame.mHeight);
+                mOutputSurface = new Surface(mSurfaceHelper.getSurfaceTexture());
+                mSurfaceHelper.startListening(this);
             }
         }
 
@@ -127,7 +126,7 @@ public class HWDecoder {
         }
 
         try {
-            mDecoder.configure(format, null, null,0);
+            mDecoder.configure(format, mOutputSurface, null,0);
         } catch (Exception e) {
             e.printStackTrace();
             return -2;
@@ -279,28 +278,74 @@ public class HWDecoder {
                 return mFrame;
             }
 
-            ByteBuffer buffer = mDecoder.getOutputBuffer(oIdx);
-            if (buffer != null && mBufferInfo.size > 0) {
-                mFrame.mBufferSize = mBufferInfo.size;
-                mFrame.mBuffer = buffer;
-                mFrame.mTimeStamp = mBufferInfo.presentationTimeUs;
-                mFrame.mGotFrame = true;
-                mFrame.mIdx = oIdx;
-               //Log.i(TAG, " decoder got frame " + oIdx + " tm " + mFrame.mTimeStamp );
-                if (mIsAudio && mDump) {
-                    try {
-                        ByteBuffer res = ByteBuffer.allocate(20000);
-                        res.put(buffer);
-                        mOutputStream.write(res.array(), 0, mBufferInfo.size);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
+            if (mOutputSurface != null) {
+                return processTextureFrame(oIdx, mBufferInfo);
             } else {
-                mDecoder.releaseOutputBuffer(oIdx, false);
+                return processByteFrame(oIdx, mBufferInfo);
             }
             // not release now
             //mDecoder.releaseOutputBuffer(oIdx, false);
+        }
+        return mFrame;
+    }
+
+    private HWAVFrame processTextureFrame(final int index, MediaCodec.BufferInfo info) {
+        final int width;
+        final int height;
+        width = mFrame.mWidth;
+        height = mFrame.mHeight;
+        mTextureFrame = mFrame;
+        synchronized (renderLock) {
+            mSurfaceHelper.setTextureSize(width, height);
+            mDecoder.releaseOutputBuffer(index, true);
+        }
+        long s = System.currentTimeMillis();
+        synchronized (mWaitEvent) {
+            if (!mNoWait) {
+                try {
+                    mWaitEvent.wait(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            mNoWait = false;
+        }
+        long e = System.currentTimeMillis();
+        releaseFream(index);
+        //Log.i(TAG, "get frame " + mTextureFrame.mTimeStamp + " tetureid " + mTextureFrame.mTextureId + " wait " + (e -s));
+        return mTextureFrame;
+    }
+
+    @Override
+    public void onFrame(HWAVFrame frame) {
+        synchronized (mWaitEvent) {
+            mTextureFrame = frame;
+            mTextureFrame.mGotFrame = true;
+            mNoWait = true;
+            mWaitEvent.notifyAll();
+        }
+    }
+
+    private HWAVFrame processByteFrame(final int oIdx, MediaCodec.BufferInfo info) {
+        ByteBuffer buffer = mDecoder.getOutputBuffer(oIdx);
+        if (buffer != null && mBufferInfo.size > 0) {
+            mFrame.mBufferSize = mBufferInfo.size;
+            mFrame.mBuffer = buffer;
+            mFrame.mTimeStamp = mBufferInfo.presentationTimeUs;
+            mFrame.mGotFrame = true;
+            mFrame.mIdx = oIdx;
+            //Log.i(TAG, " decoder got frame " + oIdx + " tm " + mFrame.mTimeStamp );
+            if (mIsAudio && mDump) {
+                try {
+                    ByteBuffer res = ByteBuffer.allocate(20000);
+                    res.put(buffer);
+                    mOutputStream.write(res.array(), 0, mBufferInfo.size);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            mDecoder.releaseOutputBuffer(oIdx, false);
         }
         return mFrame;
     }
@@ -314,131 +359,12 @@ public class HWDecoder {
             Log.i(TAG, " this is null object ");
             return;
         }
-        mDecoder.releaseOutputBuffer(index, false);
+        if (mSharedContext == null ) {
+            mDecoder.releaseOutputBuffer(index, false);
+        }
         mFrame.mGotFrame = false;
         mFrame.mIsAudio = mIsAudio;
         mFrame.mIdx = -1;
         mFrame.mBuffer = null;
-    }
-
-    private static void displayDecoders() {
-        MediaCodecList list = new MediaCodecList(MediaCodecList.ALL_CODECS);//REGULAR_CODECS参考api说明
-        MediaCodecInfo[] codecs = list.getCodecInfos();
-        for (MediaCodecInfo codec : codecs) {
-            //if (!codec.isEncoder())
-            //   continue;
-            Log.i(TAG, "displays:==== "+codec.getName());
-        }
-    }
-
-
-    private static DecoderProperties findHwEncoder(String mime, boolean isEncoder) {
-        //displayDecoders();
-        try {
-            Log.i(TAG, "sdk version is: "+  Build.VERSION.SDK_INT);
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)
-                return null; // MediaCodec.setParameters is missing.
-
-            for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
-                MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
-                if (info.isEncoder() != isEncoder) {
-                    continue;
-                }
-                for (String mimeType : info.getSupportedTypes()) {
-                    Log.i(TAG, "codec name: " + mimeType + " company:" + info.getName());
-                }
-            }
-
-            for (int i = 0; i < MediaCodecList.getCodecCount(); ++i) {
-                MediaCodecInfo info = MediaCodecList.getCodecInfoAt(i);
-                if (info.isEncoder() != isEncoder) {
-                    continue;
-                }
-                String name = null;
-                for (String mimeType : info.getSupportedTypes()) {
-                    Log.i(TAG, "codec name: " + mimeType);
-                    if (mimeType.equals(mime)) {
-                        name = info.getName();
-                        break;
-                    }
-                }
-                if (name == null) {
-                    continue;  // No VP8 support in this codec; try the next one.
-                }
-
-
-                Log.i(TAG, "Found candidate encoder " + name);
-                MediaCodecInfo.CodecCapabilities capabilities = info.getCapabilitiesForType(mime);
-                if (isEncoder) {
-
-                    Log.i(TAG, "#####level###### " );
-                    for (MediaCodecInfo.CodecProfileLevel level : capabilities.profileLevels) {
-                        Log.i(TAG,"profile " + Integer.toHexString(level.profile) + " level " + Integer.toHexString(level.level));
-                    }
-                    Log.i(TAG, " cbr " + capabilities.getEncoderCapabilities().isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR));
-                    Log.i(TAG, " vbr " + capabilities.getEncoderCapabilities().isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR));
-                    Log.i(TAG, " cq " + capabilities.getEncoderCapabilities().isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ));
-                    Log.i(TAG, " complex  " + capabilities.getEncoderCapabilities().getComplexityRange());
-//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-//                        Log.i(TAG, " quality  " +capabilities.getEncoderCapabilities().getQualityRange());
-//                    }
-
-                    Log.i(TAG, "#####video cap###### " );
-                    MediaCodecInfo.VideoCapabilities cap  = capabilities.getVideoCapabilities();
-                    Log.i(TAG, " bitrate " + cap.getBitrateRange());
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        try{
-                            cap.getAchievableFrameRatesFor(3840, 2160);
-                        } catch (Exception e) {
-                            Log.e(TAG, " getAchievableFrameRatesFor ", e);
-                        }
-
-                    }
-                    Log.i(TAG, " fps " + 1);
-
-                    Log.i(TAG, "width alignment " + cap.getWidthAlignment());
-                    Log.i(TAG, "height alignment " +cap.getHeightAlignment());
-                    Log.i(TAG, " bitrate " + cap.areSizeAndRateSupported(3840, 2160, 30));
-                    Log.i(TAG, " support fps " + cap.getSupportedFrameRates());
-                    Log.i(TAG, " support height " + cap.getSupportedHeights());
-                    Log.i(TAG, " support width " + cap.getSupportedWidths());
-                    Log.i(TAG, " size support " + cap.isSizeSupported(3840, 2160));
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        Log.i(TAG, "#####max instance######" + capabilities.getMaxSupportedInstances());
-                    }
-                    Log.i(TAG, "#####corol######" );
-                }
-
-
-
-                for (int colorFormat : capabilities.colorFormats) {
-                    Log.i(TAG, "   Color: 0x" + Integer.toHexString(colorFormat));
-                }
-
-                // Check if this is supported HW encoder
-//                for (String hwCodecPrefix : supportedHwCodecPrefixes) {
-//                    if (!name.startsWith(hwCodecPrefix)) {
-//                        continue;
-//                    }
-                // Check if codec supports either yuv420 or nv12
-                for (int supportedColorFormat : supportedColorList) {
-                    for (int codecColorFormat : capabilities.colorFormats) {
-                        if (codecColorFormat == supportedColorFormat) {
-                            // Found supported HW VP8 encoder
-                            Log.i(TAG, "Found target encoder " + name +
-                                    ". Color: 0x" + Integer.toHexString(codecColorFormat));
-                            return new DecoderProperties(name, codecColorFormat);
-                        }
-                    }
-                }
-                //     }
-            }
-            return null;  // No HW VP8 encoder.
-        }catch (Exception e) {
-            Log.e(TAG, "find exception at findHwEncoder:", e);
-            return null;
-        }
     }
 }

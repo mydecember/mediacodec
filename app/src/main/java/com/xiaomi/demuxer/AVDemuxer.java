@@ -53,10 +53,8 @@ public class AVDemuxer {
         mAudioDecoder.release();
     }
 
-    public int initialize(String filePath, int demuxer_media_type, boolean isAsync) {
-        Log.i(TAG, "to initialize ");
-        mIsAsync = isAsync;
-        mDemuxerType = demuxer_media_type;
+    public int open(String filePath) {
+        Log.i(TAG, "to open " + filePath);
         mFilePath = filePath;
         mExtractor = new MediaExtractor();
         try {
@@ -70,8 +68,65 @@ public class AVDemuxer {
         for (int i = 0; i < ntrack; ++i) {
             MediaFormat format = mExtractor.getTrackFormat(i);
             String mineType = format.getString(MediaFormat.KEY_MIME);
+            if (mineType.startsWith("video/") && mVideoTrackIndex == -1) {
+                mExtractor.selectTrack(i);
+                mVideoTrackIndex = i;
+                mWidth = format.getInteger(MediaFormat.KEY_WIDTH);
+                mHeight = format.getInteger(MediaFormat.KEY_HEIGHT);;
+                if (format.containsKey(MediaFormat.KEY_ROTATION)) {
+                    mRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+                }
+                if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                    mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
+                }
+                mExtractor.unselectTrack(i);
+
+            } else if (mineType.startsWith("audio/") && mAudioTrackIndex == -1 ){
+                mExtractor.selectTrack(i);
+                mAudioTrackIndex = i;
+                if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                    mAudioDuration = format.getLong(MediaFormat.KEY_DURATION);
+                }
+                if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                    mAudioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                }
+                if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                    mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                }
+                mExtractor.unselectTrack(i);
+                Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
+
+            } else {
+                Log.i(TAG, "jump track " + i + " format " + format.toString());
+            }
+        }
+        mVideoTrackIndex = -1;
+        mAudioTrackIndex = -1;
+        return 0;
+    }
+
+    public int start(String filePath, int demuxer_media_type, boolean isAsync, boolean useSurface) {
+        Log.i(TAG, "to initialize ");
+        mIsAsync = isAsync;
+        mDemuxerType = demuxer_media_type;
+        if (!filePath.isEmpty())
+            mFilePath = filePath;
+        if (mExtractor == null) {
+            mExtractor = new MediaExtractor();
+            try {
+                mExtractor.setDataSource(filePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return -1;
+            }
+        }
+
+        int ntrack = mExtractor.getTrackCount();
+        for (int i = 0; i < ntrack; ++i) {
+            MediaFormat format = mExtractor.getTrackFormat(i);
+            String mineType = format.getString(MediaFormat.KEY_MIME);
             if (mineType.startsWith("video/") && mVideoTrackIndex == -1 && ((demuxer_media_type & DEMUXER_VIDEO) != 0)) {
-                if (mVideoDecoder.initialize(format, mIsAsync) == 0) {
+                if (mVideoDecoder.initialize(format, mIsAsync, useSurface) == 0) {
                     mExtractor.selectTrack(i);
                     mVideoTrackIndex = i;
                     mVideoStreamEnd = false;
@@ -89,7 +144,7 @@ public class AVDemuxer {
                 }
 
             } else if (mineType.startsWith("audio/") && mAudioTrackIndex == -1 && ((demuxer_media_type & DEMUXER_AUDIO) != 0)){
-                if (mAudioDecoder.initialize(format, mIsAsync) == 0) {
+                if (mAudioDecoder.initialize(format, mIsAsync, false) == 0) {
                     mExtractor.selectTrack(i);
                     mAudioTrackIndex = i;
                     mAudioStreamEnd = false;
@@ -115,7 +170,7 @@ public class AVDemuxer {
 
         }
         if (mAudioTrackIndex == -1 && mVideoTrackIndex == -1) {
-            Log.e(TAG, "== decoder video track not found");
+            Log.e(TAG, "== decoder audio and video track not found");
             return -1;
         }
         Log.i(TAG, "initiate ok");

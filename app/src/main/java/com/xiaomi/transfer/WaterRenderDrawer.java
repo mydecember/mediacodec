@@ -2,12 +2,13 @@ package com.xiaomi.transfer;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.opengl.GLES30;
+
+import com.xiaomi.glbase.GlesUtil;
 
 public class WaterRenderDrawer extends BaseRenderDrawer {
     private int mMarkTextureId;
@@ -67,13 +68,14 @@ public class WaterRenderDrawer extends BaseRenderDrawer {
     public void draw(long timestamp, float[] transformMatrix) {
         useProgram();
         //clear();
-        viewPort(40, 75, mBitmap.getWidth() * 2, mBitmap.getHeight() * 2);
+       // viewPort(40, 75, mBitmap.getWidth() * 2, mBitmap.getHeight() * 2);
         GLES30.glDisable(GLES30.GL_DEPTH_TEST);
         GLES30.glEnable(GLES30.GL_BLEND);
+        bindFrame();
        // GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_DST_ALPHA);
-        GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_ZERO);
+       // GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_ZERO);
         onDraw();
-        GLES30.glDisable(GLES30.GL_BLEND);
+       // GLES30.glDisable(GLES30.GL_BLEND);
     }
 
     @Override

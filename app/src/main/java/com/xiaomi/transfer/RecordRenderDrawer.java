@@ -1,13 +1,14 @@
 package com.xiaomi.transfer;
 
-import android.graphics.Bitmap;
 import android.media.MediaFormat;
 import android.opengl.GLES30;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.provider.MediaStore;
 import android.util.Log;
+
+import com.xiaomi.glbase.EglBase;
+import com.xiaomi.glbase.GlesUtil;
 
 public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, VideoEncoder.VideoEncoderCallBack {
     private static String TAG = "RecordRenderDrawer";

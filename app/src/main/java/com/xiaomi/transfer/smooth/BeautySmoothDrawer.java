@@ -4,7 +4,7 @@ import android.opengl.GLES30;
 import android.util.Log;
 
 import com.xiaomi.transfer.BaseRenderDrawer;
-import com.xiaomi.transfer.GlUtil;
+import com.xiaomi.glbase.GlUtil;
 
 public class BeautySmoothDrawer extends BaseRenderDrawer {
     private final static String TAG = "BeautySmoothDrawer";
