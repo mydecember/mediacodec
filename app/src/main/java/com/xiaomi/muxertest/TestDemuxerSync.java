@@ -121,7 +121,7 @@ public class TestDemuxerSync {
         int videoNums = 0;
         int mCaptureOne = 5;
         while(true) {
-            Log.i(TAG, "to read");
+            //Log.i(TAG, "to read");
             HWAVFrame frame = demuxer.readFrame();
             if ( frame == null) {
                 Log.i(TAG, "EEEEEEEEEEEEEEEee");

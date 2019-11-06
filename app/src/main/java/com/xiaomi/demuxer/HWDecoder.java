@@ -1,9 +1,11 @@
 package com.xiaomi.demuxer;
 
+import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.media.MediaFormat;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
 
@@ -196,6 +198,21 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         }
     }
 
+    public static int getBytesPerSample(int audioFormat)
+    {
+        switch (audioFormat) {
+            case AudioFormat.ENCODING_PCM_8BIT:
+                return 1;
+            case AudioFormat.ENCODING_PCM_16BIT:
+            case AudioFormat.ENCODING_DEFAULT:
+                return 2;
+            case AudioFormat.ENCODING_PCM_FLOAT:
+                return 4;
+            case AudioFormat.ENCODING_INVALID:
+            default:
+                throw new IllegalArgumentException("Bad audio format " + audioFormat);
+        }
+    }
     HWAVFrame InternalReadFrame() {
         mFrame.mGotFrame = false;
         mFrame.mIsAudio = mIsAudio;
@@ -264,7 +281,12 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
                 if (newFormat.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
                     mFrame.mAudioSampleRate = newFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
                 }
-                Log.i(TAG, "zfq get audio channels=" +  mFrame.mAudioChannels + " sample_rate=" + mFrame.mAudioSampleRate);
+                mFrame.mSampleSize = getBytesPerSample(AudioFormat.ENCODING_PCM_16BIT);
+                if (newFormat.containsKey("pcm-encoding")) {
+                    mFrame.mSampleSize = getBytesPerSample(newFormat.getInteger("pcm-encoding"));
+                }
+
+                Log.i(TAG, "zfq get audio channels=" +  mFrame.mAudioChannels + " sample_rate=" + mFrame.mAudioSampleRate + " sample size " + mFrame.mSampleSize);
 
             }
 

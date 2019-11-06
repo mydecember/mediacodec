@@ -1,5 +1,6 @@
 package com.xiaomi.demuxer;
 
+import android.media.AudioFormat;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.util.Log;
@@ -345,7 +346,7 @@ public class AVDemuxer {
     private boolean SendSamplesToDecoder(HWDecoder decoder) {
         int index;
         long t1 = System.currentTimeMillis();
-        index = decoder.getNextDecoderBufferIndex(0);
+        index = decoder.getNextDecoderBufferIndex(500);
         if (index <=0) {
             return true;
         }
