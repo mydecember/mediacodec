@@ -205,11 +205,20 @@ public class HWEncoder {
             encodeFrame(frame);
         }
         synchronized (mLock) {
-            try {
-                mLock.wait();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            if (mRunning) {
+                try {
+                    mLock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+
+        }
+        if (mUseSurface) {
+            mEgl.makeCurrent();
+            mVideoEncoderDrawer.release();
+            mEgl.detachCurrent();
+            mEgl.release();
         }
     }
 

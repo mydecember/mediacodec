@@ -258,8 +258,8 @@ public class SurfaceTextureHelper {
         }
         GLES20.glDeleteTextures(1, new int[] {oesTextureId}, 0);
         surfaceTexture.release();
-        eglBase.release();
         mOriginalDrawer.release();
+        eglBase.release();
         handler.getLooper().quit();
     }
 

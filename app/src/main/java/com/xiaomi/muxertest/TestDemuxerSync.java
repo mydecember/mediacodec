@@ -56,7 +56,7 @@ public class TestDemuxerSync {
         demuxer.start("/sdcard/voip-data/dou.mp4", 3, false, false);
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
-        muxer.addVideoTrack("avc", false, 0, demuxer.getWidth(),demuxer.getHeight(),0,0);
+        muxer.addVideoTrack("hevc", false, 0, demuxer.getWidth(),demuxer.getHeight(),0,0);
         muxer.addAudioTrack("acc", 44100, 2, 190000);
 
         Log.i(TAG, " ++++++++++++++ encoder color " + muxer.getVideoSupportColor());
@@ -121,6 +121,7 @@ public class TestDemuxerSync {
         int videoNums = 0;
         int mCaptureOne = 5;
         while(true) {
+            Log.i(TAG, "to read");
             HWAVFrame frame = demuxer.readFrame();
             if ( frame == null) {
                 Log.i(TAG, "EEEEEEEEEEEEEEEee");
@@ -164,11 +165,14 @@ public class TestDemuxerSync {
 //                        }
 //                        mEgl.detachCurrent();
                     }
+                } else {
+                    Log.i(TAG, " not got");
                 }
             }
         }
         demuxer.stop();
         long tm1 = System.nanoTime();
+        mEgl.release();
         Log.i(TAG, "iiiiiiiii Test end used " + (tm1 - tm) /1000/1000 + " recvNums " + recvNums + " audio " + audioNums + " video " + videoNums);
     }
 
@@ -179,7 +183,7 @@ public class TestDemuxerSync {
         int height = demuxer.getHeight();
         int degree = demuxer.getRotation();
         EglBase mEgl = EglBase.create();
-        mEgl.createPbufferSurface(width, height);
+        mEgl.createPbufferSurface(1, 1);
         mEgl.makeCurrent();
 
 
@@ -229,6 +233,7 @@ public class TestDemuxerSync {
         }
         demuxer.stop();
         muxer.stop();
+        mEgl.release();
         long tm1 = System.nanoTime();
         Log.i(TAG, "iiiiiiiii Test end used " + (tm1 - tm) /1000/1000 + " recvNums " + recvNums + " audio " + audioNums + " video " + videoNums);
     }

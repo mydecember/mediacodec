@@ -149,11 +149,11 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         return mIsAudio;
     }
 
-    public int getNextDecoderBufferIndex() {
+    public int getNextDecoderBufferIndex(int waitUS) {
 
         int inputIndex = -1;
         try {
-            inputIndex = mDecoder.dequeueInputBuffer(-1);
+            inputIndex = mDecoder.dequeueInputBuffer(waitUS);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -312,7 +312,8 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         }
         long e = System.currentTimeMillis();
         releaseFream(index);
-        //Log.i(TAG, "get frame " + mTextureFrame.mTimeStamp + " tetureid " + mTextureFrame.mTextureId + " wait " + (e -s));
+        if (e - s > 10)
+            Log.i(TAG, "get frame " + mTextureFrame.mTimeStamp + " tetureid " + mTextureFrame.mTextureId + " wait " + (e -s));
         return mTextureFrame;
     }
 

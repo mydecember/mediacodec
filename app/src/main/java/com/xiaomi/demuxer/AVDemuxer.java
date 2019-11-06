@@ -345,7 +345,10 @@ public class AVDemuxer {
     private boolean SendSamplesToDecoder(HWDecoder decoder) {
         int index;
         long t1 = System.currentTimeMillis();
-        index = decoder.getNextDecoderBufferIndex();
+        index = decoder.getNextDecoderBufferIndex(0);
+        if (index <=0) {
+            return true;
+        }
         long t2 = System.currentTimeMillis();
         ByteBuffer ibuf = decoder.getNextDecoderBuffer(index);
         long t3 = System.currentTimeMillis();
@@ -369,7 +372,7 @@ public class AVDemuxer {
 
     private boolean setDecoderEnd(HWDecoder decoder) {
         int index;
-        index = decoder.getNextDecoderBufferIndex();
+        index = decoder.getNextDecoderBufferIndex(-1);
         ByteBuffer ibuf = decoder.getNextDecoderBuffer(index);
         if (ibuf == null) {
             Log.i(TAG, "get decoder buffer error");
