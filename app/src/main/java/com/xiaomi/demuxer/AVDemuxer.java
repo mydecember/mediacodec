@@ -43,6 +43,8 @@ public class AVDemuxer {
     private int mWidth;
     private int mHeight;
 
+    private int mStreamType = 0;
+
 
     long output_audio_frame_count_ = 0;
     long output_video_frame_count_ = 0;
@@ -81,6 +83,7 @@ public class AVDemuxer {
                     mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
                 }
                 mExtractor.unselectTrack(i);
+                mStreamType |= 2;
 
             } else if (mineType.startsWith("audio/") && mAudioTrackIndex == -1 ){
                 mExtractor.selectTrack(i);
@@ -95,6 +98,7 @@ public class AVDemuxer {
                     mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
                 }
                 mExtractor.unselectTrack(i);
+                mStreamType |= 1;
                 Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
 
             } else {
@@ -177,6 +181,10 @@ public class AVDemuxer {
         Log.i(TAG, "initiate ok");
         mFileEof = false;
         return 0;
+    }
+
+    public int getStreamType() {
+        return mStreamType;
     }
 
     public int getRotation() {

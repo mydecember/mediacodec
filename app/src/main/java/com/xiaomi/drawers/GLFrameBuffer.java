@@ -29,6 +29,9 @@ public class GLFrameBuffer {
     public int getTexture() {
         return mTexture;
     }
+    public int getFBO() {
+        return mFbo;
+    }
 
     public boolean bind() {
         GlesUtil.bindFrameBuffer(mFbo, mTexture);

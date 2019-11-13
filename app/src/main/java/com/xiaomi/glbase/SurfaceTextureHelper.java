@@ -243,6 +243,7 @@ public class SurfaceTextureHelper {
             frame.mWidth = textureWidth;
             frame.mHeight = textureHeight;
             frame.mTextureId = textureId;
+            frame.mFbo = mOriginalDrawer.getFBO();
             ((VideoSink) listener).onFrame(frame);
             //frame.release();
             returnTextureFrame();

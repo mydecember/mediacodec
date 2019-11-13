@@ -201,6 +201,10 @@ public abstract class BaseDrawer {
         return mFbo.getTexture();
     }
 
+    public int getFBO() {
+        return mFbo.getFBO();
+    }
+
     protected abstract String getVertexSource();
 
     protected abstract String getFragmentSource();

@@ -109,9 +109,10 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
 
                 //AVDemuxer.TestAsync();
-                TestDemuxerSync.Test();
+                //TestDemuxerSync.Test();
                 //AVDemuxer.TestReadfile();
 
+                //TestDemuxerSync.TestDemuxerSurface();
             }
         };
     }
@@ -124,8 +125,8 @@ public class MainActivity extends AppCompatActivity {
             //TestDemuxerSync.TestAsync();
 
             //TestDemuxerSync.Test();
-            TestDemuxerSync.TestDemuxerMuxer();
-            //TestDemuxerSync.TestDemuxerSurface();
+            //TestDemuxerSync.TestDemuxerMuxer();
+            TestDemuxerSync.TestDemuxerSurface();
             //TestDemuxerSync.TestDemuxerMuxerSurface();
         } else {
             mTranscode = new MiVideoTranscode();

@@ -9,6 +9,7 @@ import com.xiaomi.demuxer.HWAVFrame;
 import com.xiaomi.drawers.OriginalDrawer;
 import com.xiaomi.glbase.EglBase;
 import com.xiaomi.glbase.GlUtil;
+import com.xiaomi.glbase.GlesUtil;
 import com.xiaomi.muxer.AVMuxer;
 import com.xiaomi.transfer.OriginalRenderDrawer;
 import com.xiaomi.transfer.WaterRenderDrawer;
@@ -22,9 +23,11 @@ public class TestDemuxerSync {
         int recvNums = 0;
         long tm = System.nanoTime();
         AVDemuxer demuxer = new AVDemuxer();
-        demuxer.start("/sdcard/voip-data/dou.mp4", 3, false, false);
+        demuxer.start("/sdcard/voip-data/dou.mp4", 2, false, false);
         Log.i(TAG, "iiiiiiiii " +"SSSSSSSSSSSSSS 2957983");
         //demuxer.seekPos(2957983, 3);
+        long t1 = tm;
+        long tm_pre = 0;
         while(true) {
             HWAVFrame frame = demuxer.readFrame();
             if ( frame == null) {
@@ -33,13 +36,22 @@ public class TestDemuxerSync {
             }
             if (frame != null) {
                 if (frame.mGotFrame == true) {
-                    Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp + " got " + frame.mGotFrame + " " + (frame.mIsAudio ? " audio" : "video"));
+                    long t2 = System.nanoTime();
+                    Log.i(TAG, "iiiiiiiii used " + (t2 - t1)/1000/1000 + " " + frame.mIdx + " tm " + frame.mTimeStamp/1000 + " got " + frame.mGotFrame + " " + (frame.mIsAudio ? " audio" : "video"));
                     demuxer.releaseFrame(frame);
+                    if (tm_pre >= frame.mTimeStamp/1000) {
+                        Log.i(TAG, "********************** " + tm_pre);
+                    }
+                    tm_pre = frame.mTimeStamp/1000;
+//                    Log.i(TAG, "iiiiiiiii release used " + (System.nanoTime()-t2)/1000/1000);
                     recvNums++;
+                    t1= t2;
 //                    if (5085034 == frame.mTimeStamp) {
 //                        demuxer.seekPos(9520136, 2);
 //                        Log.i(TAG, "to seek =============");
 //                    }
+                } else {
+                    //Log.i(TAG, "no frame");
                 }
             }
         }
@@ -53,12 +65,13 @@ public class TestDemuxerSync {
         long tm = System.nanoTime();
         AVDemuxer demuxer = new AVDemuxer();
         demuxer.open("/sdcard/voip-data/dou.mp4");
-        demuxer.start("/sdcard/voip-data/dou.mp4", 3, false, false);
+        //demuxer.open("http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8");
+        demuxer.start("", 2, false, false);
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
-        muxer.addVideoTrack("hevc", false, 0, demuxer.getWidth(),demuxer.getHeight(),0,0);
-        muxer.addAudioTrack("acc", 44100, 2, 190000);
-
+        muxer.addVideoTrack("avc", false, 0, demuxer.getWidth(),demuxer.getHeight(),60,0);
+        muxer.addAudioTrack("acc", demuxer.getSampleRate(), demuxer.getChannels(), 190000);
+        Log.i(TAG, "######################### width = "+ demuxer.getWidth() + " height " + demuxer.getHeight());
         Log.i(TAG, " ++++++++++++++ encoder color " + muxer.getVideoSupportColor());
         muxer.start();
         while(true) {
@@ -72,6 +85,8 @@ public class TestDemuxerSync {
                     Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp
                             + " got " + frame.mGotFrame
                             + " color " + frame.mColorFomat
+                            + " width " + frame.mWidth
+                            + " heigt " + frame.mHeight
                             + " " + (frame.mIsAudio ? " audio" : "video")
                             + " tid " + Thread.currentThread().getId());
 
@@ -93,7 +108,7 @@ public class TestDemuxerSync {
     public static void TestAsync() {
         Log.i(TAG, "TTTTTTTTTTTT");
         AVDemuxer demuxer = new AVDemuxer();
-        demuxer.start("/sdcard/voip-data/dou.mp4", 3, true, false);
+        demuxer.start("/sdcard/voip-data/dou.mp4", 2, true, false);
         demuxer.asyncStart();
     }
 
@@ -113,7 +128,7 @@ public class TestDemuxerSync {
         long tm = System.nanoTime();
 
 
-        demuxer.start("/sdcard/voip-data/dou.mp4", 3, false, true);
+        demuxer.start("/sdcard/voip-data/dou.mp4", 2, false, true);
         mEgl.detachCurrent();
         Log.i(TAG, "iiiiiiiii " +"SSSSSSSSSSSSSS 2957983");
         //demuxer.seekPos(2957983, 3);
@@ -140,6 +155,29 @@ public class TestDemuxerSync {
                         audioNums++;
                     } else {
                         videoNums++;
+                        if (videoNums < 10) {
+                            mEgl.makeCurrent();
+                            ByteBuffer mBuffer = ByteBuffer.allocateDirect(GlUtil.mWidht * GlUtil.mHeight * 4);
+                            //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mOriginalDrawer.getOutputTextureId());
+                           // GlesUtil.bindFrameBuffer(frame.mFbo, frame.mTextureId);
+                            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, frame.mFbo);
+                            ByteBuffer buf =  mBuffer;
+                            buf.order(ByteOrder.LITTLE_ENDIAN);
+                            GLES30.glReadPixels(0, 0, GlUtil.mWidht, GlUtil.mHeight, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
+                            buf.rewind();
+
+                            Bitmap bmp = Bitmap.createBitmap(GlUtil.mWidht, GlUtil.mHeight, Bitmap.Config.ARGB_8888);
+                            bmp.copyPixelsFromBuffer(buf);
+                            //afterDraw();
+                            //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
+                            //mOriginalDrawer.unBindFrame();
+                            mCaptureOne++;
+                            GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + videoNums+ ".jpeg");
+                            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
+                            mEgl.detachCurrent();
+                        }
+
+
 //                        mEgl.makeCurrent();
 //                        mOriginalDrawer.setInputTextureId(frame.mTextureId);
 //                        mOriginalDrawer.draw(frame.mTimeStamp, null);
@@ -195,7 +233,7 @@ public class TestDemuxerSync {
 
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
-        muxer.addVideoTrack("avc", true, degree, demuxer.getWidth(),demuxer.getHeight(),0,0);
+        muxer.addVideoTrack("avc", true, degree, demuxer.getWidth(),demuxer.getHeight(),60,0);
         muxer.addAudioTrack("acc", 44100, 2, 190000);
 
 

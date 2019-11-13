@@ -16,6 +16,7 @@ public class HWAVFrame {
     public int mCropLeft;
     public int mCropRight;
     public int mTextureId;
+    public int mFbo;
 
     public int mSampleSize;
     public int mAudioChannels;

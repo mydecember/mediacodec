@@ -43,6 +43,7 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
     private final Object mWaitEvent = new Object();
     private volatile boolean mNoWait = false;
     private HWAVFrame mTextureFrame = new HWAVFrame();
+    private int mCachedFrames = 0;
 
     public void setCallBack(HWDecoderCallback call) {
         mCallback = call;
@@ -138,6 +139,11 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         if (mIsAsync) {
             createOutputThread().start();
         }
+        ByteBuffer[] outputBuffers = mDecoder.getOutputBuffers();
+        ByteBuffer[] inputBuffers = mDecoder.getInputBuffers();
+        Log.d(TAG, "Input buffers: " + inputBuffers.length +
+                ". Output buffers: " + outputBuffers.length);
+
         Log.i(TAG, "created decoder ok name is " + mDecoder.getName() + " format " + mDecoder.toString());
         initDump();
         return 0;
@@ -169,6 +175,7 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
     }
 
     public void queueInputBuffer(int index, int samples, long timeStamp, boolean end) {
+        mCachedFrames++;
         mDecoder.queueInputBuffer(index, 0, samples, timeStamp, end == true ? MediaCodec.BUFFER_FLAG_END_OF_STREAM:0);
 
     }
@@ -293,6 +300,8 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         } else if (oIdx < 0) {
             Log.i(TAG,"should not happen oIdx==" + oIdx);
         } else {
+            mCachedFrames--;
+            //Log.i(TAG, "cached frames " + mCachedFrames);
             if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM )!= 0) {
                 mFrame.mStreamEOF = true;
                 mDecoder.releaseOutputBuffer( oIdx, false);

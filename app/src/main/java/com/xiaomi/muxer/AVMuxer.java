@@ -114,6 +114,8 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
         format.setInteger(MediaFormat.KEY_CAPTURE_RATE, fps);
+        format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline);
+        format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel52);
         if (useSurface)
             format.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,  1); // 1 seconds between I-frames
