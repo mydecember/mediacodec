@@ -1,12 +1,15 @@
 package com.xiaomi.drawers;
+
+import android.opengl.GLES11Ext;
 import android.opengl.GLES30;
+import android.opengl.Matrix;
 import android.util.Log;
 
 import com.xiaomi.glbase.GlUtil;
 import com.xiaomi.glbase.GlesUtil;
 
-public class VideoEncoderDrawer extends BaseDrawer {
-    private static String TAG = "VideoEncoderDrawer";
+public class FboDrawer extends BaseDrawer {
+    private static String TAG = "FboDrawer";
     // 绘制的纹理 ID
     private int mTextureId;
     private int av_Position;
@@ -40,17 +43,12 @@ public class VideoEncoderDrawer extends BaseDrawer {
         this.height = height;
     }
 
-    public void drawFrame(long timeStamp) {
-        onDraw();
-    }
-
     @Override
     protected void onCreated() {
-        //mProgram = GlesUtil.createProgram(getVertexSource(), getFragmentSource());
-        //initVertexBufferObjects();
         av_Position = GLES30.glGetAttribLocation(mProgram, "av_Position");
         af_Position = GLES30.glGetAttribLocation(mProgram, "af_Position");
         s_Texture = GLES30.glGetUniformLocation(mProgram, "s_Texture");
+        GlUtil.checkGlError("s_Texture error ");
         Log.d(TAG, "onCreated: av_Position " + av_Position);
         Log.d(TAG, "onCreated: af_Position " + af_Position);
         Log.d(TAG, "onCreated: s_Texture " + s_Texture);
@@ -64,18 +62,13 @@ public class VideoEncoderDrawer extends BaseDrawer {
 
     @Override
     protected void onDraw() {
-        GlUtil.checkGlError("to onDraw");
-        clear();
-        useProgram();
-        viewPort(0, 0, width, height);
-
         GLES30.glEnableVertexAttribArray(av_Position);
         GLES30.glEnableVertexAttribArray(af_Position);
 //        GLES30.glVertexAttribPointer(av_Position, CoordsPerVertexCount, GLES30.GL_FLOAT, false, VertexStride, mVertexBuffer);
 //        GLES30.glVertexAttribPointer(af_Position, CoordsPerTextureCount, GLES30.GL_FLOAT, false, TextureStride, mDisplayTextureBuffer);
         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mVertexBufferId);
         GLES30.glVertexAttribPointer(av_Position, CoordsPerVertexCount, GLES30.GL_FLOAT, false, 0, 0);
-        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mDisplayTextureBufferId);
+        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, mFrameTextureBufferId);
         GLES30.glVertexAttribPointer(af_Position, CoordsPerTextureCount, GLES30.GL_FLOAT, false, 0, 0);
         GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, 0);
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0);

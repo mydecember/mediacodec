@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.xiaomi.demuxer.AVDemuxer;
 import com.xiaomi.demuxer.HWAVFrame;
+import com.xiaomi.drawers.FboDrawer;
 import com.xiaomi.drawers.OriginalDrawer;
 import com.xiaomi.glbase.EglBase;
 import com.xiaomi.glbase.GlUtil;
@@ -120,9 +121,9 @@ public class TestDemuxerSync {
         EglBase mEgl = EglBase.create();
         mEgl.createPbufferSurface(width, height);
         mEgl.makeCurrent();
-        OriginalDrawer mOriginalDrawer = new OriginalDrawer();
-        mOriginalDrawer.create();
-        mOriginalDrawer.surfaceChangedSize(width, height);
+        FboDrawer fboDrawer = new FboDrawer();
+        fboDrawer.create();
+        fboDrawer.surfaceChangedSize(width, height);
 
         int recvNums = 0;
         long tm = System.nanoTime();
@@ -134,7 +135,7 @@ public class TestDemuxerSync {
         //demuxer.seekPos(2957983, 3);
         int audioNums = 0;
         int videoNums = 0;
-        int mCaptureOne = 5;
+        int mCaptureOne = 0;
         while(true) {
             //Log.i(TAG, "to read");
             HWAVFrame frame = demuxer.readFrame();
@@ -142,7 +143,7 @@ public class TestDemuxerSync {
                 Log.i(TAG, "EEEEEEEEEEEEEEEee");
                 break;
             }
-            if (frame != null) {
+
                 if (frame.mGotFrame == true) {
                     Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp + " got " + frame.mGotFrame + " " + (frame.mIsAudio ? " audio" : "video"));
                     demuxer.releaseFrame(frame);
@@ -155,39 +156,41 @@ public class TestDemuxerSync {
                         audioNums++;
                     } else {
                         videoNums++;
+                        mEgl.makeCurrent();
+                        fboDrawer.setInputTextureId(frame.mTextureId);
+                        fboDrawer.draw(frame.mTimeStamp, null);
                         if (videoNums < 10) {
-                            mEgl.makeCurrent();
-                            ByteBuffer mBuffer = ByteBuffer.allocateDirect(GlUtil.mWidht * GlUtil.mHeight * 4);
+
+                            ByteBuffer mBuffer = ByteBuffer.allocateDirect(width * height * 4);
                             //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mOriginalDrawer.getOutputTextureId());
                            // GlesUtil.bindFrameBuffer(frame.mFbo, frame.mTextureId);
-                            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, frame.mFbo);
+                            //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, frame.mFbo);
+                            fboDrawer.bindFrame();
                             ByteBuffer buf =  mBuffer;
                             buf.order(ByteOrder.LITTLE_ENDIAN);
-                            GLES30.glReadPixels(0, 0, GlUtil.mWidht, GlUtil.mHeight, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
+                            GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
                             buf.rewind();
 
-                            Bitmap bmp = Bitmap.createBitmap(GlUtil.mWidht, GlUtil.mHeight, Bitmap.Config.ARGB_8888);
+                            Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
                             bmp.copyPixelsFromBuffer(buf);
                             //afterDraw();
                             //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
                             //mOriginalDrawer.unBindFrame();
                             mCaptureOne++;
                             GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + videoNums+ ".jpeg");
-                            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
-                            mEgl.detachCurrent();
+                            fboDrawer.unBindFrame();
+
                         }
-
-
+                        mEgl.detachCurrent();
 //                        mEgl.makeCurrent();
-//                        mOriginalDrawer.setInputTextureId(frame.mTextureId);
-//                        mOriginalDrawer.draw(frame.mTimeStamp, null);
+//                        fboDrawer.setInputTextureId(frame.mTextureId);
+//                        fboDrawer.draw(frame.mTimeStamp, null);
 //                        videoNums++;
-//
 //                        if (mCaptureOne < 5) {
 //                            // save bmp
 //                            ByteBuffer mBuffer = ByteBuffer.allocateDirect(width * height * 4);
 //                            //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mOriginalDrawer.getOutputTextureId());
-//                            mOriginalDrawer.bindFrame();
+//                            fboDrawer.bindFrame();
 //                            ByteBuffer buf =  mBuffer;
 //                            buf.order(ByteOrder.LITTLE_ENDIAN);
 //                            GLES30.glReadPixels(0, 0, width, height, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
@@ -197,16 +200,17 @@ public class TestDemuxerSync {
 //                            bmp.copyPixelsFromBuffer(buf);
 //                            //afterDraw();
 //                            //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
-//                            mOriginalDrawer.unBindFrame();
+//                            fboDrawer.unBindFrame();
 //                            mCaptureOne++;
+//                            Log.i(TAG, "########### to write file ");
 //                            GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + mCaptureOne+ ".jpeg");
 //                        }
 //                        mEgl.detachCurrent();
+
                     }
                 } else {
                     Log.i(TAG, " not got");
                 }
-            }
         }
         demuxer.stop();
         long tm1 = System.nanoTime();

@@ -64,7 +64,7 @@ public class OriginalDrawer extends BaseDrawer {
         unBindTexure();
         GLES30.glDisableVertexAttribArray(av_Position);
         GLES30.glDisableVertexAttribArray(af_Position);
-        GLES30.glFlush();
+
     }
 
     private void bindTexture(int textureId) {
@@ -81,11 +81,6 @@ public class OriginalDrawer extends BaseDrawer {
     public void setInputTextureId(int textureId) {
         mInputTextureId = textureId;
     }
-
-//    @Override
-//    public int getOutputTextureId() {
-//        return mOutputTextureId;
-//    }
 
     @Override
     protected String getVertexSource() {

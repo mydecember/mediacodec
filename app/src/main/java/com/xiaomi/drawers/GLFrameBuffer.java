@@ -20,6 +20,7 @@ public class GLFrameBuffer {
 
         mFbo = GlesUtil.createFrameBuffer();
         mTexture = GlesUtil.createFrameTexture(width, height);
+        GlesUtil.bindFrameTexture(mFbo, mTexture);
     }
 
     public void release() {

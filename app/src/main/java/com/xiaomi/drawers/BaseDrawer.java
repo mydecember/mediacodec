@@ -88,10 +88,16 @@ public abstract class BaseDrawer {
     }
 
     public void create() {
-        mFbo = new GLFrameBuffer();
         mProgram = GlesUtil.createProgram(getVertexSource(), getFragmentSource());
+        GlUtil.checkGlError("createProgram error ");
+        useProgram();
+        GlUtil.checkGlError("useProgram error ");
+        mFbo = new GLFrameBuffer();
+
         initVertexBufferObjects();
+        GlUtil.checkGlError("initVertexBufferObjects error ");
         onCreated();
+        GlUtil.checkGlError("onCreated error ");
     }
 
     public void surfaceChangedSize(int width, int height) {
@@ -113,12 +119,8 @@ public abstract class BaseDrawer {
 
     public void draw(long timestamp, float[] transformMatrix){
         useProgram();
-        GlUtil.checkGlError("glUseProgram ");
         mFbo.bind();
-
         clear();
-
-
         viewPort(0, 0, width, height);
         onDraw();
         GLES30.glFlush();
