@@ -177,8 +177,10 @@ public class HWEncoder {
             mEncoder.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
         } else {
             buffer.clear();
+            //Log.i(TAG," yuan pos " + buffer.position() + " limit " + buffer.limit() + " capcity " + buffer.capacity());
             //frame.mBuffer.flip();
             dropStride(frame);
+            //Log.i(TAG," drop pos " + frame.mBuffer.position() + " limit " + frame.mBuffer.limit() + " capcity " + frame.mBuffer.capacity());
             buffer.put(frame.mBuffer);
             buffer.flip();
             mEncoder.queueInputBuffer(index, 0, frame.mBufferSize, frame.mTimeStamp, 0);
@@ -189,6 +191,7 @@ public class HWEncoder {
         //Log.i(TAG, "to draw frame id " + frame.mTextureId + " tm " + frame.mTimeStamp);
         mEgl.makeCurrent();
         mVideoEncoderDrawer.setInputTextureId(frame.mTextureId);
+        mVideoEncoderDrawer.setSRCWidthAndHeight(frame.mWidth, frame.mHeight);
         mVideoEncoderDrawer.drawFrame(frame.mTimeStamp * 1000);
         mEgl.setPresentTime(frame.mTimeStamp*1000);
         mEgl.swapBuffers();

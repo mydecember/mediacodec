@@ -1,5 +1,6 @@
 package com.xiaomi.drawers;
 import android.opengl.GLES30;
+import android.opengl.Matrix;
 import android.util.Log;
 
 import com.xiaomi.glbase.GlUtil;
@@ -12,7 +13,15 @@ public class VideoEncoderDrawer extends BaseDrawer {
     private int av_Position;
     private int af_Position;
     private int s_Texture;
+    private int s_mvp;
+    private int src_width =  0;
+    private int src_height = 0;
+    private final float[] modelMatrix = new float[16];
 
+    public void setSRCWidthAndHeight(int w, int h) {
+        src_width = w;
+        src_height = h;
+    }
     @Override
     public void release() {
         super.release();
@@ -51,6 +60,7 @@ public class VideoEncoderDrawer extends BaseDrawer {
         av_Position = GLES30.glGetAttribLocation(mProgram, "av_Position");
         af_Position = GLES30.glGetAttribLocation(mProgram, "af_Position");
         s_Texture = GLES30.glGetUniformLocation(mProgram, "s_Texture");
+        s_mvp = GLES30.glGetUniformLocation(mProgram, "modelViewProjectionMatrix");
         Log.d(TAG, "onCreated: av_Position " + av_Position);
         Log.d(TAG, "onCreated: af_Position " + af_Position);
         Log.d(TAG, "onCreated: s_Texture " + s_Texture);
@@ -68,6 +78,28 @@ public class VideoEncoderDrawer extends BaseDrawer {
         clear();
         useProgram();
         viewPort(0, 0, width, height);
+
+        Matrix.setIdentityM(modelMatrix, 0);
+        if (src_height != 0 && src_width != 0) {
+            float t_h = width * src_height * 1.0f / src_width;
+            float t_w = height * src_width * 1.0f / src_height ;
+
+            if (t_h <= (float)height) {
+                Matrix.scaleM(modelMatrix, 0, 1f, t_h / height, 1f);
+            } else {
+                Matrix.scaleM(modelMatrix, 0, t_w / width, 1f, 1f);
+            }
+        }
+
+       // Matrix.scaleM(modelMatrix, 0, 1f, 0.5f, 1f);
+       // Matrix.rotateM(modelMatrix, 0, 50, 0f, 0f, 1f);//绕着Z轴旋转rotateAngle
+       // Matrix.translateM(modelMatrix, 0, 1.0f, 0.0f, 0f);
+       // Log.i("original", " ===== " + modelMatrix);
+
+
+
+
+        GLES30.glUniformMatrix4fv(s_mvp,1, false, modelMatrix, 0);
 
         GLES30.glEnableVertexAttribArray(av_Position);
         GLES30.glEnableVertexAttribArray(af_Position);
@@ -92,10 +124,11 @@ public class VideoEncoderDrawer extends BaseDrawer {
     protected String getVertexSource() {
         final String source = "attribute vec4 av_Position; " +
                 "attribute vec2 af_Position; " +
+                "uniform mat4 modelViewProjectionMatrix;" +
                 "varying vec2 v_texPo; " +
                 "void main() { " +
                 "    v_texPo = af_Position; " +
-                "    gl_Position = av_Position; " +
+                "    gl_Position = modelViewProjectionMatrix * av_Position; " +
                 "}";
         return source;
     }

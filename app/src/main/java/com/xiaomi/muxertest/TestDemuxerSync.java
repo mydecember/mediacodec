@@ -24,9 +24,11 @@ public class TestDemuxerSync {
         int recvNums = 0;
         long tm = System.nanoTime();
         AVDemuxer demuxer = new AVDemuxer();
-        demuxer.start("/sdcard/voip-data/dou.mp4", 2, false, false);
+        demuxer.open("/sdcard/voip-data/MVI_0550.MOV");
+        demuxer.start("/sdcard/voip-data/MVI_0550.MOV", 3, false, false);
         Log.i(TAG, "iiiiiiiii " +"SSSSSSSSSSSSSS 2957983");
         //demuxer.seekPos(2957983, 3);
+        ByteBuffer bb = ByteBuffer.allocateDirect(demuxer.getHeight()* demuxer.getWidth()*3);
         long t1 = tm;
         long tm_pre = 0;
         while(true) {
@@ -38,7 +40,15 @@ public class TestDemuxerSync {
             if (frame != null) {
                 if (frame.mGotFrame == true) {
                     long t2 = System.nanoTime();
-                    Log.i(TAG, "iiiiiiiii used " + (t2 - t1)/1000/1000 + " " + frame.mIdx + " tm " + frame.mTimeStamp/1000 + " got " + frame.mGotFrame + " " + (frame.mIsAudio ? " audio" : "video"));
+                    bb.put(frame.mBuffer);
+                    bb.flip();
+                    Log.i(TAG, "iiiiiiiii used " + (t2 - t1)/1000/1000 + " " + frame.mIdx + " tm "
+                            + frame.mTimeStamp/1000 + " got "
+                            + frame.mGotFrame +
+                            " " + (frame.mIsAudio ? " audio" : "video")
+                            + " width " + frame.mWidth
+                            + " height " + frame.mHeight
+                            + " " + bb.get(0));
                     demuxer.releaseFrame(frame);
                     if (tm_pre >= frame.mTimeStamp/1000) {
                         Log.i(TAG, "********************** " + tm_pre);
@@ -67,10 +77,14 @@ public class TestDemuxerSync {
         AVDemuxer demuxer = new AVDemuxer();
         demuxer.open("/sdcard/voip-data/dou.mp4");
         //demuxer.open("http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8");
-        demuxer.start("", 2, false, false);
+        demuxer.start("/sdcard/voip-data/dou.mp4", 2, false, false);
+
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
+        if ((demuxer.getStreamType() & 2) != 0)
         muxer.addVideoTrack("avc", false, 0, demuxer.getWidth(),demuxer.getHeight(),60,0);
+        //muxer.addVideoTrack("avc", false, 0, 720, 1080,60,0);
+        if ((demuxer.getStreamType() & 1) != 0)
         muxer.addAudioTrack("acc", demuxer.getSampleRate(), demuxer.getChannels(), 190000);
         Log.i(TAG, "######################### width = "+ demuxer.getWidth() + " height " + demuxer.getHeight());
         Log.i(TAG, " ++++++++++++++ encoder color " + muxer.getVideoSupportColor());
@@ -237,7 +251,9 @@ public class TestDemuxerSync {
 
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
-        muxer.addVideoTrack("avc", true, degree, demuxer.getWidth(),demuxer.getHeight(),60,0);
+//        muxer.addVideoTrack("avc", true, degree, demuxer.getWidth()/2,demuxer.getHeight(),30,0);
+        muxer.addVideoTrack("avc", true, degree, 1280, 960,30,0);
+        //muxer.addVideoTrack("avc", true, degree, 360,640,60,0);
         muxer.addAudioTrack("acc", 44100, 2, 190000);
 
 
@@ -249,6 +265,7 @@ public class TestDemuxerSync {
         int audioNums = 0;
         int videoNums = 0;
         int mCaptureOne = 5;
+        long encoderUsed = 0;
         while(true) {
             HWAVFrame frame = demuxer.readFrame();
             if ( frame == null) {
@@ -258,8 +275,11 @@ public class TestDemuxerSync {
             if (frame != null) {
                 if (frame.mGotFrame == true) {
                     //Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp + " got " + frame.mGotFrame + " " + (frame.mIsAudio ? " audio" : "video"));
-
+                    long encoder_s = System.currentTimeMillis();
                     muxer.writeFrame(frame);
+                    long encoder_e = System.currentTimeMillis();
+                    encoderUsed += (encoder_e - encoder_s);
+                    Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp + " got " + frame.mGotFrame + " " + (frame.mIsAudio ? " audio" : "video") + " used " + (encoder_e - encoder_s));
                     demuxer.releaseFrame(frame);
                     recvNums++;
 
@@ -277,6 +297,6 @@ public class TestDemuxerSync {
         muxer.stop();
         mEgl.release();
         long tm1 = System.nanoTime();
-        Log.i(TAG, "iiiiiiiii Test end used " + (tm1 - tm) /1000/1000 + " recvNums " + recvNums + " audio " + audioNums + " video " + videoNums);
+        Log.i(TAG, "iiiiiiiii Test end used " + (tm1 - tm) /1000/1000 + " recvNums " + recvNums + " audio " + audioNums + " video " + videoNums + " encode used " + encoderUsed);
     }
 }

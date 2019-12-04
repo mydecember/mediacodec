@@ -196,7 +196,7 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
 
     private  void deliverDecodedFrame() {
        // Log.i(TAG," to read frame");
-        HWAVFrame frame = InternalReadFrame();
+        HWAVFrame frame = InternalReadFrame(-1);
         if (mCallback!=null) {
             mCallback.onHWDecoderFrame(frame);
         }
@@ -220,7 +220,7 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
                 throw new IllegalArgumentException("Bad audio format " + audioFormat);
         }
     }
-    HWAVFrame InternalReadFrame() {
+    HWAVFrame InternalReadFrame(int timeout) {
         mFrame.mGotFrame = false;
         mFrame.mIsAudio = mIsAudio;
         mFrame.mIdx = -1;
@@ -230,6 +230,9 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
             wait = 200000;
         } else {
             wait = 0;
+        }
+        if (timeout >=0) {
+            wait = timeout;
         }
         int oIdx = mDecoder.dequeueOutputBuffer(mBufferInfo, wait);
         if (oIdx == MediaCodec.INFO_TRY_AGAIN_LATER) {
@@ -276,8 +279,8 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
                 }
                 int keyStride = newFormat.getInteger(MediaFormat.KEY_STRIDE);
                 int keyStrideHeight = newFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT);
-                mFrame.mWidth = mFrame.mCropRight - mFrame.mCropLeft + 1;
-                mFrame.mHeight = mFrame.mCropButtom - mFrame.mCropTop + 1;
+                //mFrame.mWidth = mFrame.mCropRight - mFrame.mCropLeft + 1;
+                //mFrame.mHeight = mFrame.mCropButtom - mFrame.mCropTop + 1;
                 mFrame.mStride = keyStride;
                 mFrame.mStrideHeight = keyStrideHeight;
                 Log.d(TAG, " stride:" + keyStride +  " height stride:" + keyStrideHeight );
@@ -382,8 +385,8 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         return mFrame;
     }
 
-    public HWAVFrame ReadFrame() {
-        return InternalReadFrame();
+    public HWAVFrame ReadFrame(int timeout) {
+        return InternalReadFrame(timeout);
     }
 
     public void releaseFream(int index) {

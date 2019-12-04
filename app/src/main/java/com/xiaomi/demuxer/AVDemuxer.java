@@ -1,6 +1,7 @@
 package com.xiaomi.demuxer;
 
 import android.media.AudioFormat;
+import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.util.Log;
@@ -71,35 +72,47 @@ public class AVDemuxer {
         for (int i = 0; i < ntrack; ++i) {
             MediaFormat format = mExtractor.getTrackFormat(i);
             String mineType = format.getString(MediaFormat.KEY_MIME);
+            int maxInput = format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE);
+            Log.i(TAG, "find mime type " + mineType + " trackID " + i + " max input " + maxInput + " format " + format.toString());
             if (mineType.startsWith("video/") && mVideoTrackIndex == -1) {
-                mExtractor.selectTrack(i);
-                mVideoTrackIndex = i;
-                mWidth = format.getInteger(MediaFormat.KEY_WIDTH);
-                mHeight = format.getInteger(MediaFormat.KEY_HEIGHT);;
-                if (format.containsKey(MediaFormat.KEY_ROTATION)) {
-                    mRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+                try {
+                    mExtractor.selectTrack(i);
+                    mVideoTrackIndex = i;
+                    mWidth = format.getInteger(MediaFormat.KEY_WIDTH);
+                    mHeight = format.getInteger(MediaFormat.KEY_HEIGHT);;
+                    if (format.containsKey(MediaFormat.KEY_ROTATION)) {
+                        mRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+                    }
+                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                        mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
+                    }
+                    mExtractor.unselectTrack(i);
+                    mStreamType |= 2;
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-                if (format.containsKey(MediaFormat.KEY_DURATION)) {
-                    mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
-                }
-                mExtractor.unselectTrack(i);
-                mStreamType |= 2;
 
             } else if (mineType.startsWith("audio/") && mAudioTrackIndex == -1 ){
-                mExtractor.selectTrack(i);
-                mAudioTrackIndex = i;
-                if (format.containsKey(MediaFormat.KEY_DURATION)) {
-                    mAudioDuration = format.getLong(MediaFormat.KEY_DURATION);
+                try {
+                    mExtractor.selectTrack(i);
+                    mAudioTrackIndex = i;
+                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                        mAudioDuration = format.getLong(MediaFormat.KEY_DURATION);
+                    }
+                    if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                        mAudioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                    }
+                    if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                        mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                    }
+                    mExtractor.unselectTrack(i);
+                    mStreamType |= 1;
+                    Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
+                } catch (Exception e) {
+                    Log.e(TAG, "select audio track error");
+                    e.printStackTrace();
                 }
-                if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
-                    mAudioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
-                }
-                if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
-                    mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
-                }
-                mExtractor.unselectTrack(i);
-                mStreamType |= 1;
-                Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
+
 
             } else {
                 Log.i(TAG, "jump track " + i + " format " + format.toString());
@@ -111,7 +124,7 @@ public class AVDemuxer {
     }
 
     public int start(String filePath, int demuxer_media_type, boolean isAsync, boolean useSurface) {
-        Log.i(TAG, "to initialize ");
+        Log.i(TAG, "to initialize " + filePath);
         mIsAsync = isAsync;
         mDemuxerType = demuxer_media_type;
         if (!filePath.isEmpty())
@@ -132,38 +145,48 @@ public class AVDemuxer {
             String mineType = format.getString(MediaFormat.KEY_MIME);
             if (mineType.startsWith("video/") && mVideoTrackIndex == -1 && ((demuxer_media_type & DEMUXER_VIDEO) != 0)) {
                 if (mVideoDecoder.initialize(format, mIsAsync, useSurface) == 0) {
-                    mExtractor.selectTrack(i);
-                    mVideoTrackIndex = i;
-                    mVideoStreamEnd = false;
-                    mWidth = format.getInteger(MediaFormat.KEY_WIDTH);
-                    mHeight = format.getInteger(MediaFormat.KEY_HEIGHT);;
-                    if (format.containsKey(MediaFormat.KEY_ROTATION)) {
-                        mRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+                    try{
+                        mExtractor.selectTrack(i);
+                        mVideoTrackIndex = i;
+                        mVideoStreamEnd = false;
+                        mWidth = format.getInteger(MediaFormat.KEY_WIDTH);
+                        mHeight = format.getInteger(MediaFormat.KEY_HEIGHT);;
+                        if (format.containsKey(MediaFormat.KEY_ROTATION)) {
+                            mRotation = format.getInteger(MediaFormat.KEY_ROTATION);
+                        }
+                        if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                            mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
+                        }
+                        Log.i(TAG, "video rotation " + mRotation + " mVideoDuration " + mVideoDuration);
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
-                        mVideoDuration = format.getLong(MediaFormat.KEY_DURATION);
-                    }
-                    Log.i(TAG, "video rotation " + mRotation + " mVideoDuration " + mVideoDuration);
+
                 } else {
                     Log.i(TAG, " init video decoder error " + format.toString());
                 }
 
             } else if (mineType.startsWith("audio/") && mAudioTrackIndex == -1 && ((demuxer_media_type & DEMUXER_AUDIO) != 0)){
                 if (mAudioDecoder.initialize(format, mIsAsync, false) == 0) {
-                    mExtractor.selectTrack(i);
-                    mAudioTrackIndex = i;
-                    mAudioStreamEnd = false;
+                    try {
+                        mExtractor.selectTrack(i);
+                        mAudioTrackIndex = i;
+                        mAudioStreamEnd = false;
 
-                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
-                        mAudioDuration = format.getLong(MediaFormat.KEY_DURATION);
+                        if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                            mAudioDuration = format.getLong(MediaFormat.KEY_DURATION);
+                        }
+                        if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                            mAudioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                        }
+                        if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                            mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                        }
+                        Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                    if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
-                        mAudioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
-                    }
-                    if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
-                        mAudioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
-                    }
-                    Log.i(TAG, " get audio channels " + mAudioChannels + " sample rate " + mAudioSampleRate + " mAudioDuration " + mAudioDuration);
+
 
                 } else {
                     Log.i(TAG, " init audio decoder error " + format.toString());
@@ -351,19 +374,19 @@ public class AVDemuxer {
         }
     }
 
-    private boolean SendSamplesToDecoder(HWDecoder decoder) {
-        int index;
+    private int SendSamplesToDecoder(HWDecoder decoder) {
+        int index = -1;
         long t1 = System.currentTimeMillis();
-        index = decoder.getNextDecoderBufferIndex(500);
+        index = decoder.getNextDecoderBufferIndex(0);
         if (index <=0) {
-            return true;
+            return index;
         }
         long t2 = System.currentTimeMillis();
         ByteBuffer ibuf = decoder.getNextDecoderBuffer(index);
         long t3 = System.currentTimeMillis();
         if (ibuf == null) {
             Log.i(TAG, "get decoder buffer error");
-            return false;
+            return -2;
         }
 
         int cnt = mExtractor.readSampleData(ibuf, 0);
@@ -376,7 +399,7 @@ public class AVDemuxer {
         mExtractor.advance();
         decoder.queueInputBuffer(index, cnt, tm, false);
 
-        return true;
+        return index;
     }
 
     private boolean setDecoderEnd(HWDecoder decoder) {
@@ -394,13 +417,15 @@ public class AVDemuxer {
 
     HWAVFrame  Process(HWDecoder decoder, boolean eof) {
         HWAVFrame frame = null;
+        int ret = 0;
         if (!eof) {
-            if (!SendSamplesToDecoder(decoder)) {
+            ret = SendSamplesToDecoder(decoder);
+            if (ret < -1) {
                 Log.i(TAG, "zfq SendSamplesToDecoder error ");
                 return frame;
             }
         }
-        frame = decoder.ReadFrame();
+        frame = decoder.ReadFrame(ret==-1? 1000:0);
         if (frame.mGotFrame) {
             String tp = frame.mIsAudio? "audio": "video";
             //Log.i(TAG, "zfq got frame size " + frame.mBuffer.limit()  + " " + tp + " tm " + frame.mTimeStamp);

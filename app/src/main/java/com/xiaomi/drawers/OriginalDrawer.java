@@ -42,7 +42,9 @@ public class OriginalDrawer extends BaseDrawer {
             return;
         }
         Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.rotateM(modelMatrix, 0, GlUtil.mPictureRotation, 0f, 0f, 1f);//绕着Z轴旋转rotateAngle
+        //Matrix.rotateM(modelMatrix, 0, GlUtil.mPictureRotation, 0f, 0f, 1f);//绕着Z轴旋转rotateAngle
+        //Matrix.scaleM(modelMatrix, 0, 0.5f, 0.5f, 0f);
+        //Matrix.translateM(modelMatrix, 0, 1.0f, 0.0f, 0f);
 
         GLES30.glUniformMatrix4fv(s_mvp,1, false, modelMatrix, 0);
         GLES30.glEnableVertexAttribArray(av_Position);
