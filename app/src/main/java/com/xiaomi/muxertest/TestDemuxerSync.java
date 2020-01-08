@@ -20,12 +20,12 @@ import java.nio.ByteOrder;
 
 public class TestDemuxerSync {
     static final  String TAG = "TestDemuxerSync";
-    public static void Test() {
+    public static void Test(String  file) {
         int recvNums = 0;
         long tm = System.nanoTime();
         AVDemuxer demuxer = new AVDemuxer();
-        demuxer.open("/sdcard/voip-data/MVI_0550.MOV");
-        demuxer.start("/sdcard/voip-data/MVI_0550.MOV", 3, false, false);
+        demuxer.open(file);
+        demuxer.start(file, 2, false, false);
         Log.i(TAG, "iiiiiiiii " +"SSSSSSSSSSSSSS 2957983");
         //demuxer.seekPos(2957983, 3);
         ByteBuffer bb = ByteBuffer.allocateDirect(demuxer.getHeight()* demuxer.getWidth()*3);
@@ -252,7 +252,7 @@ public class TestDemuxerSync {
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
 //        muxer.addVideoTrack("avc", true, degree, demuxer.getWidth()/2,demuxer.getHeight(),30,0);
-        muxer.addVideoTrack("avc", true, degree, 1280, 960,30,0);
+        muxer.addVideoTrack("avc", true, degree, 1080, 1920,30,0);
         //muxer.addVideoTrack("avc", true, degree, 360,640,60,0);
         muxer.addAudioTrack("acc", 44100, 2, 190000);
 

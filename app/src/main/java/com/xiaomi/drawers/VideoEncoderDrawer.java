@@ -91,14 +91,6 @@ public class VideoEncoderDrawer extends BaseDrawer {
             }
         }
 
-       // Matrix.scaleM(modelMatrix, 0, 1f, 0.5f, 1f);
-       // Matrix.rotateM(modelMatrix, 0, 50, 0f, 0f, 1f);//绕着Z轴旋转rotateAngle
-       // Matrix.translateM(modelMatrix, 0, 1.0f, 0.0f, 0f);
-       // Log.i("original", " ===== " + modelMatrix);
-
-
-
-
         GLES30.glUniformMatrix4fv(s_mvp,1, false, modelMatrix, 0);
 
         GLES30.glEnableVertexAttribArray(av_Position);

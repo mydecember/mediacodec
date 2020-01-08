@@ -20,8 +20,8 @@ public class AVDemuxer {
     private MediaFormat mVideoFromat = null;
     private int mMaxSize = 0;
     private int mMaxAudioSize = 0;
-    private HWDecoder mAudioDecoder = new HWDecoder();
-    private HWDecoder mVideoDecoder = new HWDecoder();
+    private HWDecoder mAudioDecoder;
+    private HWDecoder mVideoDecoder;
     MediaExtractor mExtractor = null;
     private int mDemuxerType = DEMUXER_AUDIO_VIDEO;
 
@@ -50,15 +50,31 @@ public class AVDemuxer {
     long output_audio_frame_count_ = 0;
     long output_video_frame_count_ = 0;
 
-    public AVDemuxer(){}
+    public AVDemuxer(){
+        Log.i(TAG, "demuxer create " + this);
+    }
 
+    private void init() {
+        mAudioDecoder = new HWDecoder();
+        mVideoDecoder = new HWDecoder();
+        mExtractor = null;
+        mAudioStreamEnd = true;
+        mVideoStreamEnd = true;
+        mAudioTrackIndex = -1;
+        mVideoTrackIndex = -1;
+        mFileEof = true;
+        mStreamType = 0;
+    }
     public void stop() {
+        Log.i(TAG, "demuxer to stop " + this);
         mVideoDecoder.release();
         mAudioDecoder.release();
+        Log.i(TAG, "demuxer stop end " + this);
     }
 
     public int open(String filePath) {
-        Log.i(TAG, "to open " + filePath);
+        Log.i(TAG, "to open " + filePath + " " + this);
+        init();
         mFilePath = filePath;
         mExtractor = new MediaExtractor();
         try {
@@ -124,7 +140,7 @@ public class AVDemuxer {
     }
 
     public int start(String filePath, int demuxer_media_type, boolean isAsync, boolean useSurface) {
-        Log.i(TAG, "to initialize " + filePath);
+        Log.i(TAG, "to initialize " + filePath + " " + this);
         mIsAsync = isAsync;
         mDemuxerType = demuxer_media_type;
         if (!filePath.isEmpty())
@@ -240,67 +256,67 @@ public class AVDemuxer {
 
     boolean mExit = false;
     public void asyncStart() {
-        mExit = false;
-        final long tm = System.nanoTime();
-        HWDecoder.HWDecoderCallback callback = new HWDecoder.HWDecoderCallback() {
-            @Override
-            public void onHWDecoderFrame(HWAVFrame frame) {
-                if (frame.mGotFrame) {
-                    //Log.i(TAG, "got frame ");
-                    if (frame.mIsAudio) {
-                        output_audio_frame_count_++;
-                    } else {
-                        output_video_frame_count_++;
-                    }
-                }
-                if ( frame.mIsAudio && frame.mStreamEOF == true) {
-                    mAudioStreamEnd = true;
-                    Log.i(TAG, "read audio codec end");
-                }
-
-                if ( !frame.mIsAudio && frame.mStreamEOF == true) {
-                    mVideoStreamEnd = true;
-                    Log.i(TAG, "read video codec end");
-                }
-                if (mAudioStreamEnd && mVideoStreamEnd) {
-                    Log.i(TAG, " streams end kkkkkkkkkk" );
-                    Log.i(TAG, "get decoder frame count audio:" + output_audio_frame_count_  + " video:" + output_video_frame_count_);
-                    mExit = true;
-                    long tm1 = System.nanoTime();
-                    Log.i(TAG, "Test end used " + (tm1 - tm) /1000/1000 );
-                }
-            }
-        };
-        mAudioDecoder.setCallBack(callback);
-        mVideoDecoder.setCallBack(callback);
-        Log.i(TAG, " start read sample");
-        while(!mFileEof) {
-            int track_id = mExtractor.getSampleTrackIndex();
-            if (mAudioTrackIndex >= 0 && track_id == mAudioTrackIndex) {
-                SendSamplesToDecoder(mAudioDecoder);
-            } else if (mVideoTrackIndex >= 0 && track_id == mVideoTrackIndex) {
-                SendSamplesToDecoder(mVideoDecoder);
-            } else {
-
-                if (mAudioTrackIndex >= 0) {
-                    setDecoderEnd(mAudioDecoder);
-                }
-                if (mVideoTrackIndex >= 0) {
-                    setDecoderEnd(mVideoDecoder);
-                }
-                mFileEof = true;
-                Log.i(TAG, "read file  end and set mFileEof " +  mFileEof);
-            }
-        }
-        while(!mExit) {
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        long tm1 = System.nanoTime();
-        Log.i(TAG, "Test end used ## " + (tm1 - tm) /1000/1000 );
+//        mExit = false;
+//        final long tm = System.nanoTime();
+//        HWDecoder.HWDecoderCallback callback = new HWDecoder.HWDecoderCallback() {
+//            @Override
+//            public void onHWDecoderFrame(HWAVFrame frame) {
+//                if (frame.mGotFrame) {
+//                    //Log.i(TAG, "got frame ");
+//                    if (frame.mIsAudio) {
+//                        output_audio_frame_count_++;
+//                    } else {
+//                        output_video_frame_count_++;
+//                    }
+//                }
+//                if ( frame.mIsAudio && frame.mStreamEOF == true) {
+//                    mAudioStreamEnd = true;
+//                    Log.i(TAG, "read audio codec end");
+//                }
+//
+//                if ( !frame.mIsAudio && frame.mStreamEOF == true) {
+//                    mVideoStreamEnd = true;
+//                    Log.i(TAG, "read video codec end");
+//                }
+//                if (mAudioStreamEnd && mVideoStreamEnd) {
+//                    Log.i(TAG, " streams end kkkkkkkkkk" );
+//                    Log.i(TAG, "get decoder frame count audio:" + output_audio_frame_count_  + " video:" + output_video_frame_count_);
+//                    mExit = true;
+//                    long tm1 = System.nanoTime();
+//                    Log.i(TAG, "Test end used " + (tm1 - tm) /1000/1000 );
+//                }
+//            }
+//        };
+//        mAudioDecoder.setCallBack(callback);
+//        mVideoDecoder.setCallBack(callback);
+//        Log.i(TAG, " start read sample");
+//        while(!mFileEof) {
+//            int track_id = mExtractor.getSampleTrackIndex();
+//            if (mAudioTrackIndex >= 0 && track_id == mAudioTrackIndex) {
+//                SendSamplesToDecoder(mAudioDecoder);
+//            } else if (mVideoTrackIndex >= 0 && track_id == mVideoTrackIndex) {
+//                SendSamplesToDecoder(mVideoDecoder);
+//            } else {
+//
+//                if (mAudioTrackIndex >= 0) {
+//                    setDecoderEnd(mAudioDecoder);
+//                }
+//                if (mVideoTrackIndex >= 0) {
+//                    setDecoderEnd(mVideoDecoder);
+//                }
+//                mFileEof = true;
+//                Log.i(TAG, "read file  end and set mFileEof " +  mFileEof);
+//            }
+//        }
+//        while(!mExit) {
+//            try {
+//                Thread.sleep(10);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//        long tm1 = System.nanoTime();
+//        Log.i(TAG, "Test end used ## " + (tm1 - tm) /1000/1000 );
     }
 
     public void releaseFrame(HWAVFrame  frame) {
@@ -330,47 +346,53 @@ public class AVDemuxer {
     }
 
     public  HWAVFrame readFrame() {
-        if (mFileEof) {
-            HWAVFrame frame  = null;
-            if (!mAudioStreamEnd) {
-                frame = Process(mAudioDecoder, mFileEof);
-                if ( frame == null || frame.mStreamEOF == true) {
-                    mAudioStreamEnd = true;
-                    Log.i(TAG, "read audio codec end");
+        try {
+            if (mFileEof) {
+                HWAVFrame frame  = null;
+                if (!mAudioStreamEnd) {
+                    frame = Process(mAudioDecoder, mFileEof);
+                    if ( frame == null || frame.mStreamEOF == true) {
+                        mAudioStreamEnd = true;
+                        Log.i(TAG, "read audio codec end");
+                    }
+                    return frame;
+                }
+                if (!mVideoStreamEnd) {
+                    frame = Process(mVideoDecoder, mFileEof);
+                    if ( frame == null || frame.mStreamEOF == true) {
+                        mVideoStreamEnd = true;
+                        Log.i(TAG, "read video codec end");
+                    }
+                    return frame;
+                }
+                if (mAudioStreamEnd && mVideoStreamEnd) {
+                    Log.i(TAG, "get decoder frame count audio:" + output_audio_frame_count_  + " video:" + output_video_frame_count_);
+                    return null;
                 }
                 return frame;
-            }
-            if (!mVideoStreamEnd) {
-                frame = Process(mVideoDecoder, mFileEof);
-                if ( frame == null || frame.mStreamEOF == true) {
-                    mVideoStreamEnd = true;
-                    Log.i(TAG, "read video codec end");
-                }
-                return frame;
-            }
-            if (mAudioStreamEnd && mVideoStreamEnd) {
-                Log.i(TAG, "get decoder frame count audio:" + output_audio_frame_count_  + " video:" + output_video_frame_count_);
-                return null;
-            }
-            return frame;
-        } else {
-            int track_id = mExtractor.getSampleTrackIndex();
-            if (mAudioTrackIndex >= 0 && track_id == mAudioTrackIndex) {
-                return Process(mAudioDecoder, mFileEof);
-            } else if (mVideoTrackIndex >= 0 && track_id == mVideoTrackIndex) {
-                return Process(mVideoDecoder, mFileEof);
             } else {
-                Log.i(TAG, "read file  end" +  mExtractor.getSampleTime());
-                if (mAudioTrackIndex >= 0) {
-                    setDecoderEnd(mAudioDecoder);
-                }
-                if (mVideoTrackIndex >= 0) {
-                    setDecoderEnd(mVideoDecoder);
-                }
+                int track_id = mExtractor.getSampleTrackIndex();
+                if (mAudioTrackIndex >= 0 && track_id == mAudioTrackIndex) {
+                    return Process(mAudioDecoder, mFileEof);
+                } else if (mVideoTrackIndex >= 0 && track_id == mVideoTrackIndex) {
+                    return Process(mVideoDecoder, mFileEof);
+                } else {
+                    Log.i(TAG, "read file  end" +  mExtractor.getSampleTime());
+                    if (mAudioTrackIndex >= 0) {
+                        setDecoderEnd(mAudioDecoder);
+                    }
+                    if (mVideoTrackIndex >= 0) {
+                        setDecoderEnd(mVideoDecoder);
+                    }
 
-                mFileEof = true;
-                return readFrame();
+                    mFileEof = true;
+                    return readFrame();
+                }
             }
+        } catch (Exception e) {
+            Log.e(TAG, "read frame some this error");
+            e.printStackTrace();
+            return null;
         }
     }
 

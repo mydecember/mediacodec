@@ -35,7 +35,7 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private HWDecoderCallback mCallback;
     private boolean mIsAsync = false;
-    private Surface mOutputSurface;
+    private Surface mOutputSurface = null;
     private EglBase.Context mSharedContext;
     private EglBase mEgl;
     private SurfaceTextureHelper mSurfaceHelper;
@@ -83,6 +83,11 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
             mSurfaceHelper.stopListening();
             mSurfaceHelper.dispose();
             mSurfaceHelper = null;
+        }
+        if (mDecoder != null) {
+            mDecoder.stop();
+            mDecoder.release();
+            mDecoder = null;
         }
         if (mDump) {
             try {
