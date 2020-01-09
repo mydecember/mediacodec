@@ -69,6 +69,7 @@ public class AVDemuxer {
         Log.i(TAG, "demuxer to stop " + this);
         mVideoDecoder.release();
         mAudioDecoder.release();
+        mExtractor.release();
         Log.i(TAG, "demuxer stop end " + this);
     }
 
