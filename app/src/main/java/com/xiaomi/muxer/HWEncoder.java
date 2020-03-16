@@ -86,7 +86,8 @@ public class HWEncoder {
             }
             //mEncoder.setCallback(mEncoderCallback);
             mEncoder.start();
-            Log.i(TAG, "create encoder and start");
+            Log.i(TAG, "create encoder and start input size " + mEncoder.getInputBuffers().length
+                    + " output size " + mEncoder.getOutputBuffers().length);
         } catch (IOException e) {
             release();
             e.printStackTrace();
@@ -266,17 +267,25 @@ public class HWEncoder {
             mCallBack.onNewFormat(newFormat, mIsAudio);
         } else if (oIdx < 0) {
         } else {
+
             if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM )!= 0) {
                 mCallBack.onEncoderEOF(mIsAudio);
                 mRunning = false;
             } else {
                 ByteBuffer buffer = mEncoder.getOutputBuffer(oIdx);
+
                 if (buffer != null && mBufferInfo.size > 0) {
+                    if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                        //mBufferInfo.size = 0;
+                        Log.i(TAG, " zfq find CCCCCCCCCCC "+ (buffer.get(4)&0x1F ));
+
+                    }
                     mCallBack.onEncodedFrame(buffer, mBufferInfo, mIsAudio);
+                    Log.i(TAG, "zfq get encoder ts " + mBufferInfo.presentationTimeUs
+                            + " key " + (mBufferInfo.flags&MediaCodec.BUFFER_FLAG_KEY_FRAME)
+                    + " offset " +mBufferInfo.offset);
                 }
             }
-
-            // not release now
             mEncoder.releaseOutputBuffer(oIdx, false);
         }
     }

@@ -15,6 +15,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
+import com.xiaomi.muxer.CodecInfo;
 import com.xiaomi.muxertest.TestDemuxerSync;
 import com.xiaomi.transfer.MiVideoTranscode;
 
@@ -125,9 +126,10 @@ public class MainActivity extends AppCompatActivity {
             //TestDemuxerSync.TestAsync();
 
             //TestDemuxerSync.Test();
-            //TestDemuxerSync.TestDemuxerMuxer();
-            TestDemuxerSync.TestDemuxerSurface();
+            TestDemuxerSync.TestDemuxerMuxer();
+            //TestDemuxerSync.TestDemuxerSurface();
             //TestDemuxerSync.TestDemuxerMuxerSurface();
+            //CodecInfo.displayDecoders(true, "video/avc");
         } else {
             mTranscode = new MiVideoTranscode();
             String source1 = "/sdcard/voip-data/VID_20190619_201101.mp4";

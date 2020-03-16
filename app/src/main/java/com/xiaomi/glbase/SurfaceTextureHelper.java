@@ -124,7 +124,7 @@ public class SurfaceTextureHelper {
         }
     }
 
-    public void setTextureSize(int textureWidth1, int textureHeight1) {
+    public void setTextureSize(final int textureWidth1,final int textureHeight1) {
         if (textureWidth1 <= 0) {
             throw new IllegalArgumentException("Texture width must be positive, but was " + textureWidth1);
         }
@@ -147,7 +147,7 @@ public class SurfaceTextureHelper {
 //        });
     }
 
-    public void setFrameRotation(int rotation) {
+    public void setFrameRotation(final  int rotation) {
         //final  SurfaceTextureHelper help = this;
         handler.post(new Runnable() {
             @Override

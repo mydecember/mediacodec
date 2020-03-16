@@ -75,9 +75,9 @@ public class TestDemuxerSync {
         int recvNums = 0;
         long tm = System.nanoTime();
         AVDemuxer demuxer = new AVDemuxer();
-        demuxer.open("/sdcard/voip-data/dou.mp4");
+        demuxer.open("/sdcard/voip-data/cut.mp4");
         //demuxer.open("http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8");
-        demuxer.start("/sdcard/voip-data/dou.mp4", 2, false, false);
+        demuxer.start("/sdcard/voip-data/cut.mp4", 2, false, false);
 
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
@@ -86,18 +86,19 @@ public class TestDemuxerSync {
         //muxer.addVideoTrack("avc", false, 0, 720, 1080,60,0);
         if ((demuxer.getStreamType() & 1) != 0)
         muxer.addAudioTrack("acc", demuxer.getSampleRate(), demuxer.getChannels(), 190000);
-        Log.i(TAG, "######################### width = "+ demuxer.getWidth() + " height " + demuxer.getHeight());
-        Log.i(TAG, " ++++++++++++++ encoder color " + muxer.getVideoSupportColor());
+        Log.i(TAG, "width = "+ demuxer.getWidth() + " height " + demuxer.getHeight()
+                     + " encoder color " + muxer.getVideoSupportColor());
+
         muxer.start();
         while(true) {
             HWAVFrame frame = demuxer.readFrame();
             if ( frame == null) {
-                Log.i(TAG, "EEEEEEEEEEEEEEEee tm " + (System.nanoTime() - tm) /1000/1000);
+                Log.i(TAG, " frame is none tm " + (System.nanoTime() - tm) /1000/1000);
                 break;
             }
             if (frame != null) {
                 if (frame.mGotFrame == true) {
-                    Log.i(TAG, "iiiiiiiii " + frame.mIdx + " tm " + frame.mTimeStamp
+                    Log.i(TAG, "zfq get decoder " + frame.mIdx + " tm " + frame.mTimeStamp
                             + " got " + frame.mGotFrame
                             + " color " + frame.mColorFomat
                             + " width " + frame.mWidth
@@ -112,9 +113,7 @@ public class TestDemuxerSync {
                 }
             }
         }
-        Log.i(TAG, "iiiiiiiii Test end used 1111111111111" );
         demuxer.stop();
-        Log.i(TAG, "iiiiiiiii Test end used 2222222222" );
         muxer.stop();
         long tm1 = System.nanoTime();
         Log.i(TAG, "iiiiiiiii Test end used " + (tm1 - tm) /1000/1000 + " recvNums " + recvNums);

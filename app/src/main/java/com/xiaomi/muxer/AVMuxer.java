@@ -79,6 +79,7 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
     }
 
     public boolean addVideoTrack(String codecName, boolean useSurface, int rotation, int width, int height, int fps, int bitrate) {
+        CodecInfo.displayDecoders(true, "video/avc");
         Log.i(TAG, "addVideoTrack codecName " + codecName
                         + " usesurface " + useSurface
                         + " rotation " + rotation
@@ -117,6 +118,8 @@ public class AVMuxer implements  HWEncoder.EncoderCallBack{
         if (useSurface)
             format.setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1000000 / fps);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,  1); // 1 seconds between I-frames
+        format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh);
+        format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel51);
         mVideoEncoder = new HWEncoder();
         if (mVideoEncoder.setupEncoder(mVideoProperties.codecName, format, this, useSurface) != 0) {
             Log.e(TAG, " setup video track error");

@@ -148,7 +148,6 @@ public class HWDecoder implements SurfaceTextureHelper.VideoSink{
         ByteBuffer[] inputBuffers = mDecoder.getInputBuffers();
         Log.d(TAG, "Input buffers: " + inputBuffers.length +
                 ". Output buffers: " + outputBuffers.length);
-
         Log.i(TAG, "created decoder ok name is " + mDecoder.getName() + " format " + mDecoder.toString());
         initDump();
         return 0;
