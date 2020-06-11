@@ -247,6 +247,7 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                     mOriginalDrawer.setInputTextureId(mCameraTextureId);
                     mOriginalDrawer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
                     int textureId = mOriginalDrawer.getOutputTextureId();
+                    Log.i(TAG, "get original drawer texture id " + textureId);
 
 //                    mSmoothDrawer.create();;
 //                    mSmoothDrawer.setInputTextureId(textureId);
@@ -271,17 +272,20 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 
                     //GlesUtil.bindFrameTexture(mFrameBuffer, textureId);
 
-//                    mWaterDraer.create();
-//                    mWaterDraer.setInputTextureId(textureId);
-//                    mWaterDraer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
+                    mWaterDraer.create();
+                    mWaterDraer.setInputTextureId(textureId);
+                    mWaterDraer.surfaceChangedSize(GlUtil.mWidht, GlUtil.mHeight);
+                    // not get textureId for mWaterDraer
 
-                    mRecordDrawer.setParams(mCodecName, mRecoderWidth, mRecoderHeight, 30, mBitRate, mPath);
+                    Log.i(TAG, "get mWaterDraer drawer texture id " + textureId);
+
+                    mRecordDrawer.setParams(mCodecName, mRecoderWidth, mRecoderHeight, 60, mBitRate, mPath);
                     mRecordDrawer.create();
                     mRecordDrawer.surfaceChangedSize(mRecoderWidth, mRecoderHeight);
                     mRecordDrawer.setInputTextureId(textureId);
+                    textureId = mRecordDrawer.getOutputTextureId();
                     mRecordDrawer.startRecord();
-
-
+                    Log.i(TAG, "get mRecordDrawer drawer texture id " + textureId);
                     mRecordDrawer.addAudioFormat(player.getAudioFromate());
                     mPlayTask.execute();
                     break;
@@ -294,14 +298,13 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
                         break;
                     }
                     //Log.i(TAG, " to update end ");
-                    float[] mtx = new float[16];;
+                    float[] mtx = new float[16];
                     mSurfaceTexture.getTransformMatrix(mtx);
                     long timeStamp = mSurfaceTexture.getTimestamp();
                     //GlesUtil.bindFrameBuffer(mFrameBuffer, mOriginalDrawer.getOutputTextureId());
 
+                    mOriginalDrawer.bindFrame();
                     mOriginalDrawer.draw(timeStamp, mtx);
-
-
 
                     //GlesUtil.unBindFrameBuffer();
 
@@ -321,37 +324,37 @@ public class MiVideoTranscode implements SurfaceTexture.OnFrameAvailableListener
 //                    mHorizontalGaussianDrawer.draw(timeStamp, mtx);
 //                    GLES30.glFlush();
 //                    GlesUtil.unBindFrameBuffer();
-
-
-
-
-
-
 //                    GlesUtil.bindFrameBuffer(mFrameBuffer, mWaterDraer.getOutputTextureId());
-//                    mFrameNums++;
-//                    mWaterDraer.setWater(timeStamp/1000/1000 + " num:" + mFrameNums );
-//                    mWaterDraer.draw(timeStamp, mtx);
-//                    GLES30.glFlush();
+
+                    //mOriginalDrawer.bindFrame();
+                    mFrameNums++;
+                    mWaterDraer.setWater(timeStamp/1000/1000 + " num:" + mFrameNums );
+                    mWaterDraer.draw(timeStamp, mtx);
+                    GLES30.glFlush();
+                    mOriginalDrawer.unBindFrame();
+                    //GLES30.glFlush();
+                    //mOriginalDrawer.unBindFrame();
+
 //                    GlesUtil.unBindFrameBuffer();
 
-                    if (mCaptureOne < 5) {
-                        // save bmp
-                        ByteBuffer mBuffer = ByteBuffer.allocateDirect(GlUtil.mWidht * GlUtil.mHeight * 4);
-                        //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mOriginalDrawer.getOutputTextureId());
-                        mOriginalDrawer.bindFrame();
-                        ByteBuffer buf =  mBuffer;
-                        buf.order(ByteOrder.LITTLE_ENDIAN);
-                        GLES30.glReadPixels(0, 0, GlUtil.mWidht, GlUtil.mHeight, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
-                        buf.rewind();
-
-                        Bitmap bmp = Bitmap.createBitmap(GlUtil.mWidht, GlUtil.mHeight, Bitmap.Config.ARGB_8888);
-                        bmp.copyPixelsFromBuffer(buf);
-                        //afterDraw();
-                        //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
-                        mOriginalDrawer.unBindFrame();
-                        mCaptureOne++;
-                        GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + mCaptureOne+ ".jpeg");
-                    }
+//                    if (mCaptureOne < 1432) {
+//                        // save bmp
+//                        ByteBuffer mBuffer = ByteBuffer.allocateDirect(GlUtil.mWidht * GlUtil.mHeight * 4);
+//                        //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mOriginalDrawer.getOutputTextureId());
+//                        mOriginalDrawer.bindFrame();
+//                        ByteBuffer buf =  mBuffer;
+//                        buf.order(ByteOrder.LITTLE_ENDIAN);
+//                        GLES30.glReadPixels(0, 0, GlUtil.mWidht, GlUtil.mHeight, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, buf);
+//                        buf.rewind();
+//
+//                        Bitmap bmp = Bitmap.createBitmap(GlUtil.mWidht, GlUtil.mHeight, Bitmap.Config.ARGB_8888);
+//                        bmp.copyPixelsFromBuffer(buf);
+//                        //afterDraw();
+//                        //GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
+//                        mOriginalDrawer.unBindFrame();
+//                        mCaptureOne++;
+//                        GlUtil.saveFile(bmp, "/sdcard/kk", "kkk" + mCaptureOne+ ".jpeg");
+//                    }
                     mNums++;
                     Log.i(TAG, " to draw present " + mNums + " time " + timeStamp + " " );
 

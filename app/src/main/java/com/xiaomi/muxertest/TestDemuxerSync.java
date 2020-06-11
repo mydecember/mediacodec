@@ -75,9 +75,9 @@ public class TestDemuxerSync {
         int recvNums = 0;
         long tm = System.nanoTime();
         AVDemuxer demuxer = new AVDemuxer();
-        demuxer.open("/sdcard/voip-data/cut.mp4");
+        demuxer.open("/sdcard/voip-data/1920.mp4");
         //demuxer.open("http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8");
-        demuxer.start("/sdcard/voip-data/cut.mp4", 2, false, false);
+        demuxer.start("/sdcard/voip-data/1920.mp4", 2, false, false);
 
         AVMuxer muxer = new AVMuxer();
         muxer.open("/sdcard/voip-data/muxer.mp4");
@@ -105,6 +105,9 @@ public class TestDemuxerSync {
                             + " heigt " + frame.mHeight
                             + " " + (frame.mIsAudio ? " audio" : "video")
                             + " tid " + Thread.currentThread().getId());
+                    if (recvNums > 150) {
+                        frame.mTimeStamp += 5000000;
+                    }
 
                     muxer.writeFrame(frame);
                     demuxer.releaseFrame(frame);

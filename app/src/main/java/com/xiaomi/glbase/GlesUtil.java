@@ -183,6 +183,7 @@ public class GlesUtil {
 
     public static void bindFrameBuffer(int mFrameBuffer , int textureId) {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, mFrameBuffer);
+        GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0, GLES30.GL_TEXTURE_2D, textureId, 0);
         GlUtil.checkGlError(" glBindFramebuffer error ");
     }
 

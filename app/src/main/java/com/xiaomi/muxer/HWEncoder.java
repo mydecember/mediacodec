@@ -277,7 +277,7 @@ public class HWEncoder {
                 if (buffer != null && mBufferInfo.size > 0) {
                     if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                         //mBufferInfo.size = 0;
-                        Log.i(TAG, " zfq find CCCCCCCCCCC "+ (buffer.get(4)&0x1F ));
+                        //Log.i(TAG, " zfq find CCCCCCCCCCC "+ (buffer.get(4)&0x1F ));
 
                     }
                     mCallBack.onEncodedFrame(buffer, mBufferInfo, mIsAudio);

@@ -25,7 +25,7 @@ import static android.media.MediaExtractor.SEEK_TO_PREVIOUS_SYNC;
  */
 public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
     private static final String TAG = "MoviePlayer";
-    private static final boolean VERBOSE = false;
+    private static final boolean VERBOSE = true;
 
     // Declare this here to reduce allocations.
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
@@ -394,7 +394,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
 
         extractor.seekTo(mSeekPosMS*1000, SEEK_TO_PREVIOUS_SYNC);
         while (!outputDone || !audioDone) {
-            if (VERBOSE) Log.d(TAG, "loop");
+            //if (VERBOSE) Log.d(TAG, "loop");
             if (mIsStopRequested) {
                 Log.d(TAG, "Stop requested");
                 mAudioDecoder.release();
@@ -403,6 +403,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
             long presentTime = 0;
 
             int Index = extractor.getSampleTrackIndex();
+            Log.i(TAG, "get index " + Index);
             if (Index == maudioTrack && Index > 0) {
                 int index = mAudioDecoder.getNextDecoderBufferIndex();
 
@@ -440,6 +441,12 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                         // End of stream -- send empty frame with EOS flag set.
                         decoder.queueInputBuffer(inputBufIndex, 0, 0, 0L,
                                 MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+//                        if (maudioTrack > 0) {
+//                            int index = mAudioDecoder.getNextDecoderBufferIndex();
+//                            mAudioDecoder.queueInputBuffer(index, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+//                            audioDone = true;
+//                        }
+
                         inputDone = true;
                         Log.d(TAG, "sent input EOS");
                     } else {
@@ -573,7 +580,7 @@ public class MoviePlayer implements AudioDecoder.AudioFrameCallback {
                         synchronized (mWaitEvent) {
                             try {
                                 if (mNotwait == false) {
-                                    mWaitEvent.wait(500);
+                                    mWaitEvent.wait(1000);
                                     mNotwait = false;
                                 }
 

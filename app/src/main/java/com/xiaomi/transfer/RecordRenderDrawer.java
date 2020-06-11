@@ -72,13 +72,14 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
         Log.d(TAG, "setInputTextureId: " + textureId);
     }
 
-    @Override
-    public int getOutputTextureId() {
-        return mTextureId;
-    }
+//    @Override
+//    public int getOutputTextureId() {
+//        return mTextureId;
+//    }
 
     @Override
     public void create() {
+        super.create();
         mSharedContext = EglBase.getCurrentContext();
     }
 
@@ -121,7 +122,7 @@ public class RecordRenderDrawer extends BaseRenderDrawer implements Runnable, Vi
     @Override
     public void draw(long timestamp, float[] transformMatrix) {
         if (isRecording) {
-            mMsgHandler.removeMessages(MsgHandler.MSG_FRAME);
+            //mMsgHandler.removeMessages(MsgHandler.MSG_FRAME);
             Message msg = mMsgHandler.obtainMessage(MsgHandler.MSG_FRAME, timestamp);
             mMsgHandler.sendMessage(msg);
         }

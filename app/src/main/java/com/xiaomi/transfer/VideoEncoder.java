@@ -57,8 +57,12 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
     private AudioEncoder mAudioEncoder;
 
     private boolean mAsync = true;
+    private boolean mIsEnd = false;
     private Queue<MoviePlayer.AudioFrame> audioFramequeue = new LinkedList<MoviePlayer.AudioFrame>();
 
+    public boolean isAsync() {
+        return mAsync;
+    }
     @Override
     public void onAudioEncodedFrame(ByteBuffer bytes, MediaCodec.BufferInfo info) {
         if (!mMuxerStarted) {
@@ -359,6 +363,8 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
         Log.i(TAG, "stopEncoder");
         if (mAsync) {
             mEncoder.signalEndOfInputStream();
+        } else {
+            drainEncoder(true);
         }
     }
 
@@ -390,6 +396,12 @@ public class VideoEncoder implements AudioEncoder.AudioEncoderCallback {
     public void drainEncoder(boolean endOfStream) {
         if (mAsync)
             return;
+        if (mIsEnd) {
+            return;
+        }
+        if (endOfStream) {
+            mIsEnd = true;
+        }
         //Log.i(TAG, "11111111111111");
         final int TIMEOUT_USEC = 10000;
         if (endOfStream) {

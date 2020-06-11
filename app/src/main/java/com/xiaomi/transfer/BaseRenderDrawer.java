@@ -111,22 +111,20 @@ public abstract class BaseRenderDrawer {
     }
 
     public void draw(long timestamp, float[] transformMatrix){
+
         useProgram();
         GlUtil.checkGlError("glUseProgram ");
-        mFbo.bind();
-
+        //mFbo.bind();
         clear();
-
-
         viewPort(0, 0, width, height);
         onDraw();
-        GLES30.glFlush();
-        mFbo.unBind();
+        //mFbo.unBind();
         GlUtil.checkGlError("unBind error");
+        GLES30.glFlush();
     }
 
     protected void clear(){
-        GLES30.glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+        GLES30.glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         GlUtil.checkGlError("clear 1");
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
         GlUtil.checkGlError("clear 2");
@@ -197,6 +195,9 @@ public abstract class BaseRenderDrawer {
     public abstract void setInputTextureId(int textureId);
 
     public int getOutputTextureId() {
+        if (mFbo == null) {
+            Log.i("2222", " nnnnnn");
+        }
         return mFbo.getTexture();
     }
 

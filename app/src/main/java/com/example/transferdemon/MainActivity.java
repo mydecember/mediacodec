@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void start() {
-        boolean sel = true;
+        boolean sel = false;
         //createOutputThread().start();
         if (sel ) {
             //createOutputThread().start();
@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
             String source4 = "/sdcard/voip-data/mi_720.mp4";
             String source5 = "/sdcard/voip-data/result_huawei.mp4";
             String source6 = "/sdcard/voip-data/VID_mi_num.mp4";
-            String source7 = "/sdcard/voip-data/dou.mp4";
+            String source7 = "/sdcard/voip-data/1920.mp4";
             String source8 = "/sdcard/voip-data/832_468.mp4";
             //String source9 = "/sdcard/voip-data/liyuan.mp4";
             //String source9 = "/sdcard/voip-data/tmp.mov";

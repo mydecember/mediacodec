@@ -7,8 +7,11 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.opengl.GLES30;
+import android.util.Log;
 
 import com.xiaomi.glbase.GlesUtil;
+
+import static android.support.constraint.Constraints.TAG;
 
 public class WaterRenderDrawer extends BaseRenderDrawer {
     private int mMarkTextureId;
@@ -52,6 +55,8 @@ public class WaterRenderDrawer extends BaseRenderDrawer {
         p.setTextSize(22);
         canvasTemp.drawText(mstrTitle,0,20,p);
         mMarkTextureId = GlesUtil.loadBitmapTexture(mBitmap);
+        Log.i(TAG, " LLLLLLLL water " + mstrTitle);
+
 
     }
 
@@ -67,15 +72,15 @@ public class WaterRenderDrawer extends BaseRenderDrawer {
     @Override
     public void draw(long timestamp, float[] transformMatrix) {
         useProgram();
-        //clear();
-       // viewPort(40, 75, mBitmap.getWidth() * 2, mBitmap.getHeight() * 2);
+        viewPort(40, 75, mBitmap.getWidth() * 2, mBitmap.getHeight() * 2);
         GLES30.glDisable(GLES30.GL_DEPTH_TEST);
         GLES30.glEnable(GLES30.GL_BLEND);
-        bindFrame();
-       // GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_DST_ALPHA);
-       // GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_ZERO);
+        //GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_DST_ALPHA);
+        GLES30.glBlendFunc(GLES30.GL_SRC_COLOR, GLES30.GL_ZERO);
         onDraw();
-       // GLES30.glDisable(GLES30.GL_BLEND);
+        GLES30.glDisable(GLES30.GL_BLEND);
+        GLES30.glFlush();
+
     }
 
     @Override

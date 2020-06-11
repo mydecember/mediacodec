@@ -22,7 +22,7 @@ public class AudioDecoder {
     private volatile boolean running = false;
     private AudioFrameCallback mCallback;
 
-    private boolean mDump = true;
+    private boolean mDump = false;
     private String mDumpPath = "/sdcard/voip-data/dump.pcm";
     private FileOutputStream mOutputStream;
 
@@ -89,7 +89,7 @@ public class AudioDecoder {
         return true;
     }
 
-    public void release() {
+    public synchronized void release() {
         if (mDump) {
             try {
                 mOutputStream.close();
@@ -120,7 +120,7 @@ public class AudioDecoder {
         };
     }
 
-    public void deliverDecoderFrame() {
+    public synchronized void deliverDecoderFrame() {
         try{
             MediaCodec.BufferInfo mDecoderBufferInfo = new MediaCodec.BufferInfo();
             int outputIndex = mCodec.dequeueOutputBuffer(mDecoderBufferInfo, 100000);
